@@ -5,20 +5,22 @@ import { toast } from "sonner"
 import { getMe, getSetupStatus, logout } from "@/lib/api"
 import type { User } from "@/lib/types"
 import { AdminPanel } from "@/components/admin-panel"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { LoginForm } from "@/components/login-form"
 import { PPTWorkspace } from "@/components/ppt-workspace"
 import { SetupWizard } from "@/components/setup-wizard"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircleIcon, Loader2Icon, LogOutIcon, SettingsIcon, WandSparklesIcon } from "lucide-react"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { AlertCircleIcon, Loader2Icon } from "lucide-react"
 
 type AppState = "loading" | "setup" | "login" | "ready"
+type DashboardSection = "workspace" | "admin"
 
 export function AppShell() {
   const [state, setState] = React.useState<AppState>("loading")
   const [user, setUser] = React.useState<User | null>(null)
+  const [activeSection, setActiveSection] = React.useState<DashboardSection>("workspace")
   const [error, setError] = React.useState("")
 
   React.useEffect(() => {
@@ -67,6 +69,7 @@ export function AppShell() {
       toast.error(err instanceof Error ? err.message : "退出失败")
     } finally {
       setUser(null)
+      setActiveSection("workspace")
       setState("login")
     }
   }
@@ -94,57 +97,53 @@ export function AppShell() {
     return null
   }
 
+  const effectiveSection: DashboardSection = user.role === "admin" ? activeSection : "workspace"
+  const pageMeta = effectiveSection === "admin"
+    ? {
+        title: "后台管理",
+        description: "管理用户账号、生成角色模型和系统提示词。",
+      }
+    : {
+        title: "AI 生成 PPT 工作台",
+        description: "输入主题，审核架构，生成 SVG 页面并导出 PPTX。",
+      }
+
   return (
-    <main className="min-h-svh bg-background">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
-        <header className="flex flex-col gap-4 rounded-2xl border bg-card p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">AI PPT Generator</Badge>
-              <Badge variant={user.role === "admin" ? "default" : "outline"}>{user.role}</Badge>
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">AI 生成 PPT 工作台</h1>
-              <p className="text-muted-foreground">当前用户：{user.email}</p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOutIcon data-icon="inline-start" />
-            退出登录
-          </Button>
-        </header>
-
-        {error ? (
-          <Alert variant="destructive">
-            <AlertCircleIcon />
-            <AlertTitle>加载提示</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Tabs defaultValue="workspace">
-          <TabsList>
-            <TabsTrigger value="workspace">
-              <WandSparklesIcon data-icon="inline-start" />
-              工作台
-            </TabsTrigger>
-            {user.role === "admin" ? (
-              <TabsTrigger value="admin">
-                <SettingsIcon data-icon="inline-start" />
-                后台管理
-              </TabsTrigger>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 14)",
+        } as React.CSSProperties
+      }
+    >
+      <DashboardSidebar
+        variant="inset"
+        user={user}
+        activeSection={effectiveSection}
+        onSectionChange={setActiveSection}
+        onLogout={handleLogout}
+      />
+      <SidebarInset>
+        <DashboardHeader title={pageMeta.title} description={pageMeta.description} user={user} />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+            {error ? (
+              <Alert variant="destructive">
+                <AlertCircleIcon />
+                <AlertTitle>加载提示</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             ) : null}
-          </TabsList>
-          <TabsContent value="workspace">
-            <PPTWorkspace compact />
-          </TabsContent>
-          {user.role === "admin" ? (
-            <TabsContent value="admin">
+
+            {effectiveSection === "admin" && user.role === "admin" ? (
               <AdminPanel currentUser={user} />
-            </TabsContent>
-          ) : null}
-        </Tabs>
-      </section>
-    </main>
+            ) : (
+              <PPTWorkspace compact />
+            )}
+          </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
