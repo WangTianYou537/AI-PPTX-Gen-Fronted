@@ -15,7 +15,7 @@ export type AppPageId =
   | "workspace.overview"
   | "workspace.topic"
   | "workspace.outline"
-  | "workspace.svg"
+  | "workspace.ppt"
   | "admin.users"
   | "admin.roles"
   | "admin.storage"
@@ -57,7 +57,7 @@ export const APP_MENU: AppMenuGroup[] = [
       {
         id: "workspace.overview",
         title: "工作台总览",
-        description: "统一管理主题输入、架构审核、SVG 预览和 PPTX 导出。",
+        description: "统一管理主题输入、架构审核、PPT 预览和 PPTX 导出。",
         role: "all",
         icon: LayoutDashboardIcon,
       },
@@ -76,9 +76,9 @@ export const APP_MENU: AppMenuGroup[] = [
         icon: FileTextIcon,
       },
       {
-        id: "workspace.svg",
-        title: "SVG 预览与导出",
-        description: "预览每页 SVG，复制源码或导出 PPTX 文件。",
+        id: "workspace.ppt",
+        title: "PPT 预览与导出",
+        description: "预览每页 PPT，复制源码或导出 PPTX 文件。",
         role: "all",
         icon: FileImageIcon,
       },

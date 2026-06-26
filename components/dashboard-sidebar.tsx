@@ -11,7 +11,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -20,9 +19,25 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { LayoutDashboardIcon, LogOutIcon, Sparkles, HelpCircle, ChevronRight } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { 
+  LayoutDashboardIcon, 
+  LogOutIcon, 
+  Sparkles, 
+  HelpCircle, 
+  ChevronRight, 
+  ChevronsUpDown 
+} from "lucide-react"
 
 type DashboardSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user: User
@@ -31,17 +46,18 @@ type DashboardSidebarProps = React.ComponentProps<typeof Sidebar> & {
   onLogout: () => void
 }
 
-// 提取菜单组的 TypeScript 类型
 type MenuGroup = ReturnType<typeof filterMenuByRole>[number]
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "管理员",
+  user: "普通成员",
+  member: "普通成员",
+}
 
 function userInitial(email: string) {
   return email.trim().charAt(0).toUpperCase() || "U"
 }
 
-/**
- * 重构后的单个菜单项组件
- * 自动识别是否有子菜单，并处理对应的折叠/高亮状态
- */
 function NavigationMenuItem({
   group,
   activePage,
@@ -51,10 +67,55 @@ function NavigationMenuItem({
   activePage: AppPageId
   onPageChange: (page: AppPageId) => void
 }) {
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
+
   const hasSubItems = group.items && group.items.length > 0
   const isGroupActive = hasSubItems && group.items.some((item) => item.id === activePage)
 
-  // 情况 A: 扁平菜单（无子菜单）
+  // 情况 A: 折叠状态且有子菜单 -> 右侧悬浮弹出菜单 (字号统一为舒适的 text-sm / text-xs)
+  if (isCollapsed && hasSubItems) {
+    return (
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              isActive={isGroupActive}
+              tooltip={group.title}
+              className="hover:bg-sidebar-accent/60 data-[active=true]:bg-indigo-50/50 dark:data-[active=true]:bg-indigo-950/30 data-[active=true]:text-indigo-600 dark:data-[active=true]:text-indigo-400 transition-colors"
+            >
+              {group.icon && <group.icon className="size-4 shrink-0" />}
+              <span className="sr-only">{group.title}</span>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" sideOffset={8} className="w-52 rounded-xl border-border/50 bg-card/95 backdrop-blur-md">
+            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-3 py-2 uppercase tracking-wider">
+              {group.title}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {group.items.map((item) => (
+              <DropdownMenuItem key={item.id} asChild>
+                <button
+                  type="button"
+                  onClick={() => onPageChange(item.id as AppPageId)}
+                  className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
+                    activePage === item.id
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400 font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                  }`}
+                >
+                  {item.icon && <item.icon className="size-4 shrink-0" />}
+                  <span>{item.title}</span>
+                </button>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    )
+  }
+
+  // 情况 B: 扁平单菜单 (字号采用标准 text-sm)
   if (!hasSubItems) {
     return (
       <SidebarMenuItem>
@@ -62,15 +123,18 @@ function NavigationMenuItem({
           isActive={activePage === group.id}
           tooltip={group.title}
           onClick={() => onPageChange(group.id as AppPageId)}
+          className="h-10 hover:bg-sidebar-accent/60 data-[active=true]:bg-indigo-50/50 dark:data-[active=true]:bg-indigo-950/30 data-[active=true]:text-indigo-600 dark:data-[active=true]:text-indigo-400 transition-colors text-sm"
         >
-          {group.icon && <group.icon className="size-4" />}
-          <span>{group.title}</span>
+          {group.icon && (
+            <group.icon className="size-4 text-muted-foreground group-data-[active=true]:text-indigo-600 dark:group-data-[active=true]:text-indigo-400 transition-colors" />
+          )}
+          <span className="font-medium">{group.title}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     )
   }
 
-  // 情况 B: 嵌套菜单（带折叠功能）
+  // 情况 C: 正常展开的嵌套折叠菜单 (子菜单字号提升至 text-sm，去掉了蚂蚁字)
   return (
     <Collapsible
       asChild
@@ -79,25 +143,30 @@ function NavigationMenuItem({
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton isActive={isGroupActive} tooltip={group.title}>
-            {group.icon && <group.icon className="size-4" />}
-            <span>{group.title}</span>
-            <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          <SidebarMenuButton 
+            isActive={isGroupActive} 
+            tooltip={group.title}
+            className="h-10 hover:bg-sidebar-accent/60 data-[active=true]:text-indigo-600 dark:data-[active=true]:text-indigo-400 transition-colors text-sm"
+          >
+            {group.icon && (
+              <group.icon className="size-4 text-muted-foreground group-data-[active=true]:text-indigo-600 dark:group-data-[active=true]:text-indigo-400" />
+            )}
+            <span className="font-medium">{group.title}</span>
+            <ChevronRight className="ml-auto size-4 opacity-60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub>
+          <SidebarMenuSub className="ml-4 border-l border-sidebar-border/60 pl-3 my-1 space-y-1">
             {group.items.map((item) => (
               <SidebarMenuSubItem key={item.id}>
                 <SidebarMenuSubButton
-                  asChild
                   isActive={activePage === item.id}
                   aria-current={activePage === item.id ? "page" : undefined}
+                  onClick={() => onPageChange(item.id)}
+                  className="w-full h-9 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 data-[active=true]:text-indigo-600 dark:data-[active=true]:text-indigo-400 data-[active=true]:bg-indigo-50/30 dark:data-[active=true]:bg-indigo-950/20 transition-colors cursor-pointer"
                 >
-                  <button type="button" onClick={() => onPageChange(item.id)}>
-                    {item.icon && <item.icon className="size-4" />}
-                    <span>{item.title}</span>
-                  </button>
+                  {item.icon && <item.icon className="size-4 shrink-0" />}
+                  <span>{item.title}</span>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ))}
@@ -120,48 +189,30 @@ export function DashboardSidebar({
   const creditPercentage = Math.min(100, Math.max(0, (aiCredits.used / aiCredits.total) * 100))
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      {/* 头部：品牌 Logo 与核心主动作 */}
-      <SidebarHeader className="gap-4">
+    <Sidebar collapsible="icon" {...props} className="border-r border-sidebar-border/50">
+      
+      {/* 头部：品牌 Logo */}
+      <SidebarHeader className="gap-5 px-3 py-5">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="AI PPT Generator">
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <LayoutDashboardIcon className="size-4" />
+            <SidebarMenuButton size="lg" tooltip="AI PPT Generator" className="hover:bg-transparent">
+              <div className="flex aspect-square size-9 items-center justify-center rounded-lg bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-sm">
+                <LayoutDashboardIcon className="size-5" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">AI PPT Generator</span>
-                <span className="truncate text-xs text-muted-foreground">智能演示文稿创作</span>
+              <div className="grid flex-1 text-left ml-2.5">
+                <span className="truncate font-bold text-foreground text-sm tracking-wide">AI PPT Generator</span>
+                <span className="truncate text-xs text-muted-foreground/80 mt-0.5">智能演示文稿创作</span>
               </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-
-        <SidebarMenu className="px-1">
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip="AI 一键生成"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground hover:text-primary-foreground shadow-sm transition-all"
-              onClick={() => {
-                // 此处可绑定跳转到 AI 生成页的逻辑
-              }}
-            >
-              <Sparkles className="size-4 shrink-0 animate-pulse text-yellow-300" />
-              <span className="font-semibold truncate group-data-[collapsible=icon]:hidden">
-                AI 一键生成
-              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
-      {/* 主导航内容 */}
-      <SidebarContent>
+      {/* 主导航 */}
+      <SidebarContent className="px-1">
         <SidebarGroup>
-          <SidebarGroupLabel>工作台</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
+          <SidebarGroupContent className="mt-1">
+            <SidebarMenu className="gap-1">
               {menu.map((group) => (
                 <NavigationMenuItem
                   key={group.id}
@@ -175,69 +226,109 @@ export function DashboardSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator />
+      <SidebarSeparator className="opacity-50" />
 
-      {/* 底部功能区 */}
-      <SidebarFooter className="gap-2">
-        <SidebarMenu>
-          {/* AI 算力额度 */}
-          <SidebarMenuItem className="px-2 py-1.5 group-data-[collapsible=icon]:hidden">
-            <div className="rounded-lg border bg-sidebar-accent/30 p-3 text-sidebar-accent-foreground">
-              <div className="flex items-center justify-between text-xs font-medium">
+      {/* 底部 */}
+      <SidebarFooter className="gap-2 p-3">
+        <SidebarMenu className="gap-1.5">
+          
+          {/* AI 算力额度：字号由 text-[10px] 提升至 text-xs */}
+          <SidebarMenuItem className="px-1 py-1 group-data-[collapsible=icon]:hidden">
+            <div className="rounded-xl border border-sidebar-border/50 bg-sidebar-accent/20 p-4 text-sidebar-accent-foreground backdrop-blur-sm">
+              <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Sparkles className="size-3 text-primary" />
+                  <Sparkles className="size-3.5 text-indigo-500" />
                   AI 算力额度
                 </span>
-                <span className="font-semibold">
+                <span className="font-bold text-foreground">
                   {aiCredits.used} / {aiCredits.total} 点
                 </span>
               </div>
-              <div className="mt-2 h-1.5 w-full rounded-full bg-sidebar-border overflow-hidden">
+              <div className="mt-3 h-1.5 w-full rounded-full bg-sidebar-border/50 overflow-hidden">
                 <div 
-                  className="h-full rounded-full bg-primary transition-all duration-300" 
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300" 
                   style={{ width: `${creditPercentage}%` }} 
                 />
               </div>
-              <p className="mt-1.5 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-xs text-muted-foreground/70 leading-normal">
                 每日重置 · 升级解锁无限额度
               </p>
             </div>
           </SidebarMenuItem>
 
-          {/* 帮助与反馈 */}
+          {/* 帮助与反馈：字号升级为 text-sm */}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="帮助与反馈">
-              <HelpCircle className="size-4" />
-              <span>帮助与反馈</span>
+            <SidebarMenuButton 
+              tooltip="帮助与反馈" 
+              className="h-10 hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground transition-colors text-sm"
+            >
+              <HelpCircle className="size-4 opacity-80 shrink-0" />
+              <span className="font-medium">帮助与反馈</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          {/* 用户信息 */}
+          <SidebarSeparator className="my-1 opacity-50" />
+
+          {/* 用户菜单与角色标识：统一为下拉菜单，字号升级为 text-sm / text-xs */}
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip={user.email}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent font-medium text-sidebar-accent-foreground shrink-0">
-                {userInitial(user.email)}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.email}</span>
-                <span className="truncate text-xs text-muted-foreground">{user.role}</span>
-              </div>
-              <Badge 
-                variant={user.role === "admin" ? "default" : "outline"} 
-                className="group-data-[collapsible=icon]:hidden scale-90"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton 
+                  size="lg" 
+                  tooltip={user.email} 
+                  className="w-full justify-between hover:bg-sidebar-accent/50 data-[state=open]:bg-sidebar-accent/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-900/50 shrink-0">
+                      {userInitial(user.email)}
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                      <span className="truncate font-semibold text-foreground">{user.email}</span>
+                      <span className="truncate text-xs text-muted-foreground/85 mt-0.5">
+                        {ROLE_LABELS[user.role] || "成员"}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground/60 shrink-0 group-data-[collapsible=icon]:hidden" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                side="top" 
+                align="end" 
+                sideOffset={4}
+                className="w-56 rounded-xl border-border/50 bg-card/95 backdrop-blur-md shadow-sm"
               >
-                {user.role}
-              </Badge>
-            </SidebarMenuButton>
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2.5 px-3 py-2.5 text-left text-sm">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-900/50 shrink-0">
+                      {userInitial(user.email)}
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                      <span className="truncate font-semibold text-foreground">{user.email}</span>
+                      <span className="truncate text-xs text-muted-foreground mt-0.5">{ROLE_LABELS[user.role] || "成员"}</span>
+                    </div>
+                    <Badge 
+                      variant={user.role === "admin" ? "default" : "outline"} 
+                      className="capitalize scale-90 shrink-0"
+                    >
+                      {user.role}
+                    </Badge>
+                  </div>
+                </DropdownMenuLabel>
+                
+                <DropdownMenuSeparator />
+                
+                <DropdownMenuItem 
+                  onClick={onLogout}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer text-sm py-2 px-3"
+                >
+                  <LogOutIcon className="mr-2.5 size-4" />
+                  <span>退出登录</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
 
-          {/* 退出登录 */}
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="退出登录" onClick={onLogout}>
-              <LogOutIcon className="size-4" />
-              <span>退出登录</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>

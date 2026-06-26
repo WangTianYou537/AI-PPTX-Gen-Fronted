@@ -13,19 +13,33 @@ import { AlertCircleIcon, BadgeCheckIcon, SettingsIcon, WandSparklesIcon } from 
 type AppPageRendererProps = {
   page: AppPageId
   user: User
+  onPageChange: (page: AppPageId) => void
 }
 
-export function AppPageRenderer({ page, user }: AppPageRendererProps) {
+export function AppPageRenderer({ page, user, onPageChange }: AppPageRendererProps) {
+  // 权限检查
   if (page.startsWith("admin.") && user.role !== "admin") {
     return (
-      <Alert variant="destructive">
-        <AlertCircleIcon />
-        <AlertTitle>无权限访问</AlertTitle>
-        <AlertDescription>当前账号没有后台管理权限。</AlertDescription>
+      <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 text-destructive">
+        <AlertCircleIcon className="size-4.5" />
+        <AlertTitle className="text-sm font-semibold">无权限访问</AlertTitle>
+        <AlertDescription className="text-sm mt-1">当前账号没有后台管理权限。</AlertDescription>
       </Alert>
     )
   }
 
+  // 核心：PPT 生成工作台页面拦截渲染
+  if (page.startsWith("workspace.")) {
+    return (
+      <PPTWorkspace
+        compact
+        activePage={page}
+        onPageChange={onPageChange}
+      />
+    )
+  }
+
+  // 后台管理及系统页面
   switch (page) {
     case "admin.users":
       return <UserManagement currentUser={user} />
@@ -35,68 +49,75 @@ export function AppPageRenderer({ page, user }: AppPageRendererProps) {
       return <StorageSettings />
     case "system.help":
       return <HelpPage isAdmin={user.role === "admin"} />
-    case "workspace.overview":
-    case "workspace.topic":
-    case "workspace.outline":
-    case "workspace.svg":
     default:
-      return <PPTWorkspace compact />
+      return (
+        <PPTWorkspace
+          compact
+          activePage="workspace.overview"
+          onPageChange={onPageChange}
+        />
+      )
   }
 }
 
 function HelpPage({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <WandSparklesIcon />
+    <div className="grid gap-6 lg:grid-cols-3">
+      
+      {/* PPT 生成流程卡 */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <WandSparklesIcon className="size-4.5 text-indigo-500 shrink-0" />
             PPT 生成流程
           </CardTitle>
-          <CardDescription>从主题输入到 PPTX 导出的完整链路。</CardDescription>
+          <CardDescription className="text-xs leading-relaxed mt-1">从主题输入到 PPTX 导出的完整链路。</CardDescription>
         </CardHeader>
         <CardContent>
-          <ol className="flex list-decimal flex-col gap-2 pl-4 text-sm text-muted-foreground">
-            <li>输入主题、目标受众、期望页数和视觉风格。</li>
-            <li>生成 PPT 架构后审核并修改 JSON。</li>
-            <li>生成每页 SVG，预览效果并复制源码。</li>
-            <li>确认后导出为可下载的 PPTX 文件。</li>
+          <ol className="flex list-decimal flex-col gap-2.5 pl-4 text-sm text-muted-foreground leading-relaxed">
+            <li>输入演示主题、目标受众、期望页数和视觉风格。</li>
+            <li>生成 PPT 架构后，对页面大纲进行审核与可视化修改。</li>
+            <li>渲染各页面高保真 SVG，预览排版效果。</li>
+            <li>确认演示大纲与版面效果无误后，一键导出为标准的 PPTX。</li>
           </ol>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <SettingsIcon />
+      {/* 角色模型配置卡 */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <SettingsIcon className="size-4.5 text-violet-500 shrink-0" />
             角色模型配置
           </CardTitle>
-          <CardDescription>管理员可配置不同生成角色的模型和提示词。</CardDescription>
+          <CardDescription className="text-xs leading-relaxed mt-1">管理员可配置不同生成角色的模型和提示词。</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-            <p>PPT 架构师负责输出结构化大纲。</p>
-            <p>PPT-SVG 生成器负责输出每页可预览 SVG。</p>
-            <p>支持 OpenAI-compatible、Gemini 和 Claude 配置。</p>
+          <div className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed">
+            <p><strong>PPT 架构师</strong>负责输出合理、有深度、逻辑性强的多级结构化大纲。</p>
+            <p><strong>PPT-SVG 生成器</strong>负责将大纲细节转换并渲染为支持实时预览的高保真卡片。</p>
+            <p>完美支持主流的 OpenAI-compatible、Gemini、Claude 等模型接口配置。</p>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BadgeCheckIcon />
+      {/* 当前权限卡 */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <BadgeCheckIcon className="size-4.5 text-emerald-500 shrink-0" />
             当前权限
           </CardTitle>
-          <CardDescription>菜单会根据账号角色自动展示。</CardDescription>
+          <CardDescription className="text-xs leading-relaxed mt-1">系统菜单及高级管理功能会根据账号角色自动动态分发。</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-            <p>{isAdmin ? "当前账号可访问后台管理。" : "当前账号仅可访问 PPT 生成和系统说明。"}</p>
-            <p>后台 API 仍由服务端权限控制，前端菜单只负责展示和导航。</p>
+          <div className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed">
+            <p>{isAdmin ? "🎉 您当前使用的是管理员账号，可以访问系统管理面板。" : "当前登录为普通成员账号，仅开放 PPT 生成及系统说明模块。"}</p>
+            <p>除前端导航控制外，底层 API 依然由服务端执行严格的二次越权鉴权控制，保障平台存储及数据调用安全。</p>
           </div>
         </CardContent>
       </Card>
+      
     </div>
   )
 }

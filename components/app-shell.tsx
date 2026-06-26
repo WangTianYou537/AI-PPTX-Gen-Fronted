@@ -138,7 +138,8 @@ export function AppShell() {
               </Alert>
             ) : null}
 
-            <AppPageRenderer page={effectivePage} user={user} />
+            {/* 🚀 传入 onPageChange，让页面渲染器有能力更新侧栏高亮状态 */}
+            <AppPageRenderer page={effectivePage} user={user} onPageChange={setActivePage} />
           </div>
         </div>
       </SidebarInset>
