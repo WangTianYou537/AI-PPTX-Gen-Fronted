@@ -50,17 +50,16 @@ export function SVGPreviewGrid({ slides, isExporting = false, onCopy, onExportPP
               </div>
             </CardHeader>
             <CardContent>
+              {/* 
+                添加了 flex, items-center, justify-center 居中
+                以及 [&>svg]:w-full [&>svg]:h-full [&>svg]:block 等样式，
+                确保内部渲染的 <svg> 能够缩放到容器大小。
+              */}
               <div
-                className="aspect-video overflow-hidden rounded-lg border bg-muted"
+                className="aspect-video overflow-hidden rounded-lg border bg-muted flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:block [&>svg]:max-w-full [&>svg]:max-h-full"
                 dangerouslySetInnerHTML={{ __html: slide.svg }}
               />
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" size="sm" onClick={() => onCopy(slide.svg)}>
-                <CopyIcon data-icon="inline-start" />
-                复制 SVG
-              </Button>
-            </CardFooter>
           </Card>
         ))}
       </div>

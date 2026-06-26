@@ -4,6 +4,8 @@ import type {
   PromptSettings,
   SetupStatus,
   SlideSVG,
+  StorageConfig,
+  SupportedStorageOption,
   SVGResponse,
   TopicInput,
   User,
@@ -12,8 +14,30 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 
-type APIError = {
+type APIErrorBody = {
   error?: string
+  detail?: string
+  requestId?: string
+}
+
+export class APIRequestError extends Error {
+  status: number
+  path: string
+  method: string
+  requestId?: string
+  detail?: string
+  raw?: string
+
+  constructor(input: { message: string; status: number; path: string; method: string; requestId?: string; detail?: string; raw?: string }) {
+    super(input.message)
+    this.name = "APIRequestError"
+    this.status = input.status
+    this.path = input.path
+    this.method = input.method
+    this.requestId = input.requestId
+    this.detail = input.detail
+    this.raw = input.raw
+  }
 }
 
 type UserPayload = {
@@ -23,7 +47,28 @@ type UserPayload = {
   disabled?: boolean
 }
 
+async function parseAPIError(response: Response, path: string, method: string): Promise<APIRequestError> {
+  const raw = await response.text().catch(() => "")
+  let body: APIErrorBody = {}
+  try {
+    body = raw ? JSON.parse(raw) as APIErrorBody : {}
+  } catch {
+    body = {}
+  }
+  const requestId = body.requestId || response.headers.get("X-Request-ID") || undefined
+  return new APIRequestError({
+    message: body.error || `请求失败：${response.status}`,
+    status: response.status,
+    path,
+    method,
+    requestId,
+    detail: body.detail,
+    raw: raw && !body.error ? raw.slice(0, 4000) : undefined,
+  })
+}
+
 async function requestJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method || "GET"
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "same-origin",
     ...init,
@@ -34,8 +79,7 @@ async function requestJSON<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as APIError
-    throw new Error(body.error || `请求失败：${response.status}`)
+    throw await parseAPIError(response, path, method)
   }
 
   return response.json() as Promise<T>
@@ -52,12 +96,20 @@ export function getSetupStatus() {
   return requestJSON<SetupStatus>("/api/setup/status")
 }
 
-export function setupAdmin(email: string, password: string) {
-  return postJSON<AuthResponse>("/api/setup/admin", { email, password })
+export function setupAdmin(email: string, password: string, storage?: StorageConfig) {
+  return postJSON<AuthResponse>("/api/setup/admin", { email, password, storage })
+}
+
+export function testSetupStorage(storage: StorageConfig) {
+  return postJSON<{ ok: boolean }>("/api/setup/storage/test", { storage })
 }
 
 export function login(email: string, password: string) {
   return postJSON<AuthResponse>("/api/auth/login", { email, password })
+}
+
+export function register(email: string, password: string) {
+  return postJSON<AuthResponse>("/api/auth/register", { email, password })
 }
 
 export function logout() {
@@ -104,8 +156,27 @@ export function resetPrompts() {
   return postJSON<PromptSettings>("/api/admin/prompts/reset", {})
 }
 
+export type StorageResponse = {
+  storageConfigured: boolean
+  storage?: StorageConfig
+  supportedStorage: SupportedStorageOption[]
+}
+
+export function getAdminStorage() {
+  return requestJSON<StorageResponse>("/api/admin/storage")
+}
+
+export function testAdminStorage(storage: StorageConfig) {
+  return postJSON<{ ok: boolean }>("/api/admin/storage/test", { storage })
+}
+
+export function switchAdminStorage(storage: StorageConfig) {
+  return postJSON<StorageResponse>("/api/admin/storage/switch", { storage })
+}
+
 export async function exportPPTX(title: string, slides: SlideSVG[]) {
-  const response = await fetch(`${API_BASE_URL}/api/export-pptx`, {
+  const path = "/api/export-pptx"
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
@@ -113,8 +184,7 @@ export async function exportPPTX(title: string, slides: SlideSVG[]) {
   })
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as APIError
-    throw new Error(body.error || `请求失败：${response.status}`)
+    throw await parseAPIError(response, path, "POST")
   }
 
   return response.blob()

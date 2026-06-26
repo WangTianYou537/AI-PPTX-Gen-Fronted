@@ -1,12 +1,5 @@
 export type Provider = "openai" | "gemini" | "claude"
 
-export type ApiConfig = {
-  provider: Provider
-  apiKey: string
-  baseURL: string
-  model: string
-}
-
 export type TopicInput = {
   topic: string
   audience: string
@@ -51,8 +44,28 @@ export type User = {
   updatedAt: string
 }
 
+export type StorageKind = "json" | "sqlite" | "postgres" | "mysql" | "redis"
+
+export type StorageConfig = {
+  kind: StorageKind | ""
+  path?: string
+  dsn?: string
+  updatedAt?: string
+}
+
+export type SupportedStorageOption = {
+  kind: StorageKind
+  label: string
+  status: "supported" | "advanced" | "comingSoon" | "notPrimaryStore"
+  defaultPath?: string
+  description: string
+}
+
 export type SetupStatus = {
   needsSetup: boolean
+  storageConfigured?: boolean
+  storage?: StorageConfig
+  supportedStorage?: SupportedStorageOption[]
 }
 
 export type AuthResponse = {

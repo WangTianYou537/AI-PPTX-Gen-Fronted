@@ -4,15 +4,15 @@ import * as React from "react"
 import { toast } from "sonner"
 import { exportPPTX, generateOutline, generateSVG } from "@/lib/api"
 import type { PresentationOutline, SlideSVG, TopicInput } from "@/lib/types"
+import { DebugErrorAlert } from "@/components/debug-error-alert"
 import { OutlineEditor } from "@/components/outline-editor"
 import { SVGPreviewGrid } from "@/components/svg-preview-grid"
 import { TopicForm } from "@/components/topic-form"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertCircleIcon, BotIcon, FileImageIcon, PanelsTopLeftIcon } from "lucide-react"
+import { BotIcon, FileImageIcon, PanelsTopLeftIcon } from "lucide-react"
 
 const defaultTopic: TopicInput = {
   topic: "",
@@ -39,10 +39,10 @@ export function PPTWorkspace({ compact = false }: PPTWorkspaceProps) {
   const [isArchitecting, setIsArchitecting] = React.useState(false)
   const [isGeneratingSVG, setIsGeneratingSVG] = React.useState(false)
   const [isExportingPPTX, setIsExportingPPTX] = React.useState(false)
-  const [error, setError] = React.useState("")
+  const [error, setError] = React.useState<unknown>(null)
 
   async function handleGenerateOutline() {
-    setError("")
+    setError(null)
     setIsArchitecting(true)
     try {
       const nextOutline = await generateOutline(topic)
@@ -51,9 +51,8 @@ export function PPTWorkspace({ compact = false }: PPTWorkspaceProps) {
       setSVGs([])
       toast.success("PPT 架构已生成")
     } catch (err) {
-      const message = err instanceof Error ? err.message : "生成架构失败"
-      setError(message)
-      toast.error(message)
+      setError(err)
+      toast.error(err instanceof Error ? err.message : "生成架构失败")
     } finally {
       setIsArchitecting(false)
     }
@@ -79,16 +78,15 @@ export function PPTWorkspace({ compact = false }: PPTWorkspaceProps) {
     if (!outline) {
       return
     }
-    setError("")
+    setError(null)
     setIsGeneratingSVG(true)
     try {
       const response = await generateSVG(outline)
       setSVGs(response.slides)
       toast.success("SVG 页面已生成")
     } catch (err) {
-      const message = err instanceof Error ? err.message : "生成 SVG 失败"
-      setError(message)
-      toast.error(message)
+      setError(err)
+      toast.error(err instanceof Error ? err.message : "生成 SVG 失败")
     } finally {
       setIsGeneratingSVG(false)
     }
@@ -112,9 +110,8 @@ export function PPTWorkspace({ compact = false }: PPTWorkspaceProps) {
       URL.revokeObjectURL(url)
       toast.success("PPTX 已导出")
     } catch (err) {
-      const message = err instanceof Error ? err.message : "导出 PPTX 失败"
-      setError(message)
-      toast.error(message)
+      setError(err)
+      toast.error(err instanceof Error ? err.message : "导出 PPTX 失败")
     } finally {
       setIsExportingPPTX(false)
     }
@@ -126,103 +123,149 @@ export function PPTWorkspace({ compact = false }: PPTWorkspaceProps) {
   }
 
   return (
-    <div className={compact ? "bg-background" : "min-h-svh bg-background"}>
+    <div className={compact ? "bg-background" : "min-h-svh bg-background/50"}>
       <section className={compact ? "flex w-full flex-col gap-6" : "mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-8"}>
-        <div className="flex flex-col gap-5 rounded-2xl border bg-card p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex max-w-3xl flex-col gap-3">
-            <Badge className="w-fit" variant="secondary">
-              AI PPT Generator
-            </Badge>
-            <div className="flex flex-col gap-2">
-              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">AI 生成 PPT 工作台</h1>
-              <p className="text-muted-foreground md:text-lg">
-                先由 PPT 架构师生成结构，人工审核修改后，再让 SVG 生成器输出每页可预览画面。
-              </p>
+
+        {/* 头部展示区 */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card to-muted/40 p-6 shadow-sm md:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex max-w-3xl flex-col gap-3">
+              <Badge className="w-fit" variant="secondary">
+                AI PPT Generator
+              </Badge>
+              <div className="flex flex-col gap-2">
+                <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-foreground">
+                  AI 生成 PPT 工作台
+                </h1>
+                <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                  先由 PPT 架构师生成结构，人工审核修改后，再让 SVG 生成器输出每页可预览画面。
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={outline ? "default" : "outline"}>1 架构</Badge>
-            <Badge variant={svgs.length ? "default" : "outline"}>2 SVG</Badge>
-            <Badge variant="secondary">后台角色模型</Badge>
+
+            {/* 步骤工作流指示 */}
+            <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-background/80 p-2 text-sm shadow-2xs self-start lg:self-center">
+              <span className="text-xs text-muted-foreground px-2">当前进度:</span>
+              <Badge variant={outline ? "default" : "secondary"} className="gap-1.5 px-3 py-1 text-xs">
+                <span className={`h-1.5 w-1.5 rounded-full ${outline ? 'bg-background' : 'bg-primary'}`} />
+                1 架构
+              </Badge>
+              <span className="text-muted-foreground/30 text-xs">/</span>
+              <Badge variant={svgs.length ? "default" : "outline"} className="gap-1.5 px-3 py-1 text-xs">
+                <span className={`h-1.5 w-1.5 rounded-full ${svgs.length ? 'bg-background' : 'bg-muted-foreground/30'}`} />
+                2 SVG
+              </Badge>
+            </div>
           </div>
         </div>
 
-        {error ? (
-          <Alert variant="destructive">
-            <AlertCircleIcon />
-            <AlertTitle>请求失败</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
+        {error ? <DebugErrorAlert title="请求失败" error={error} /> : null}
 
-        <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BotIcon />
-                角色模型
+        {/* 主工作区 */}
+        <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+
+          {/* 左侧角色模型信息卡片 */}
+          <Card className="h-fit border-border/60 shadow-2xs">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2.5 text-base font-semibold">
+                <BotIcon className="h-4 w-4 text-primary" />
+                角色模型状态
               </CardTitle>
-              <CardDescription>模型和 API Key 由管理员在后台按生成角色统一配置。</CardDescription>
+              <CardDescription className="text-xs">
+                系统根据后台配置自动分发生成任务
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-                <p>当前工作台会自动使用后台设置的 PPT 架构师模型和 PPT-SVG 生成器模型。</p>
-                <p>如果生成失败并提示模型未配置，请联系管理员到“后台管理 / 角色模型”中补全配置。</p>
+            <CardContent className="space-y-4">
+              <div className="space-y-3 rounded-xl bg-muted/40 p-3.5 border border-border/30 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">PPT 架构师</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    已就绪
+                  </span>
+                </div>
+                <Separator className="bg-border/30" />
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs">SVG 生成器</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    已就绪
+                  </span>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                模型与 API 密钥由管理员统一管理。若生成中提示模型配置异常，请联系系统管理员在“后台管理 / 角色模型”中补全配置。
+              </p>
             </CardContent>
           </Card>
 
+          {/* 右侧主操控区域 */}
           <Tabs defaultValue="topic" className="min-w-0">
-            <TabsList>
-              <TabsTrigger value="topic">
-                <PanelsTopLeftIcon data-icon="inline-start" />
-                主题
-              </TabsTrigger>
-              <TabsTrigger value="outline">架构审核</TabsTrigger>
-              <TabsTrigger value="svg">
-                <FileImageIcon data-icon="inline-start" />
-                SVG 预览
-              </TabsTrigger>
-            </TabsList>
-            <Separator className="my-4" />
-            <TabsContent value="topic">
-              <Card>
-                <CardHeader>
-                  <CardTitle>输入主题</CardTitle>
-                  <CardDescription>告诉 PPT 架构师你想表达什么、给谁看、希望几页。</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <TopicForm
-                    value={topic}
-                    isLoading={isArchitecting}
-                    onChange={setTopic}
-                    onSubmit={handleGenerateOutline}
+            <div className="border-b pb-1">
+              <TabsList className="bg-muted/60 p-1">
+                <TabsTrigger value="topic" className="gap-2 text-xs md:text-sm">
+                  <PanelsTopLeftIcon className="h-4 w-4" />
+                  1. 设定主题
+                </TabsTrigger>
+                <TabsTrigger value="outline" className="gap-2 text-xs md:text-sm">
+                  2. 架构审核
+                </TabsTrigger>
+                <TabsTrigger value="svg" className="gap-2 text-xs md:text-sm">
+                  <FileImageIcon className="h-4 w-4" />
+                  3. SVG 预览
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="mt-4">
+              <TabsContent value="topic" className="m-0 focus-visible:outline-none">
+                <Card className="border-border/60 shadow-2xs">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">输入演示主题</CardTitle>
+                    <CardDescription>告诉 PPT 架构师你想表达什么、受众是谁、希望生成几页。</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <TopicForm
+                      value={topic}
+                      isLoading={isArchitecting}
+                      onChange={setTopic}
+                      onSubmit={handleGenerateOutline}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="outline" className="m-0 focus-visible:outline-none">
+                <Card className="border-border/60 shadow-2xs">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">审核并调整大纲结构</CardTitle>
+                    <CardDescription>在确认每页的标题、表达目的和视觉提示后，即可一键生成 SVG 画幅。</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <OutlineEditor
+                      outline={outline}
+                      draft={outlineDraft}
+                      error={outlineError}
+                      isGenerating={isGeneratingSVG}
+                      onDraftChange={setOutlineDraft}
+                      onApply={handleApplyOutline}
+                      onGenerateSVG={handleGenerateSVG}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="svg" className="m-0 focus-visible:outline-none">
+                <div className="rounded-xl border border-border/50 bg-card p-6 shadow-2xs">
+                  <SVGPreviewGrid
+                    slides={svgs}
+                    isExporting={isExportingPPTX}
+                    onCopy={copySVG}
+                    onExportPPTX={handleExportPPTX}
                   />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="outline">
-              <Card>
-                <CardHeader>
-                  <CardTitle>审核并修改 PPT 架构</CardTitle>
-                  <CardDescription>确认每页标题、目的、要点和视觉提示后，再生成 SVG。</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <OutlineEditor
-                    outline={outline}
-                    draft={outlineDraft}
-                    error={outlineError}
-                    isGenerating={isGeneratingSVG}
-                    onDraftChange={setOutlineDraft}
-                    onApply={handleApplyOutline}
-                    onGenerateSVG={handleGenerateSVG}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="svg">
-              <SVGPreviewGrid slides={svgs} isExporting={isExportingPPTX} onCopy={copySVG} onExportPPTX={handleExportPPTX} />
-            </TabsContent>
+                </div>
+              </TabsContent>
+            </div>
           </Tabs>
         </div>
       </section>
