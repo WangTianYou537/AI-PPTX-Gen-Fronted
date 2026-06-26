@@ -3,7 +3,6 @@
 import * as React from "react"
 import { toast } from "sonner"
 import { exportPPTX, generateOutline, generateSVG } from "@/lib/api"
-// 🚀 确保这里导入了 SlideOutline
 import type { PresentationOutline, SlideSVG, TopicInput, SlideOutline } from "@/lib/types"
 import type { AppPageId } from "@/lib/navigation"
 import { DebugErrorAlert } from "@/components/debug-error-alert"
@@ -140,22 +139,19 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
   }
 
   // ==========================================
-  // 🚀 100% 强类型安全的 SlideOutline 编辑与同步函数
+  // 强类型安全的 SlideOutline 编辑与同步函数
   // ==========================================
 
-  // 统一保存状态，同步至 JSON 编辑草稿
   const saveVisualChanges = (newOutline: PresentationOutline) => {
     setOutline(newOutline)
     setOutlineDraft(JSON.stringify(newOutline, null, 2))
   }
 
-  // 修改演示文稿主标题
   const handleUpdateTitle = (val: string) => {
     if (!outline) return
     saveVisualChanges({ ...outline, title: val })
   }
 
-  // 修改页面标题、设计意图(purpose)、视觉提示词(visualHint)
   const handleUpdateSlideField = (
     slideIndex: number, 
     field: "title" | "purpose" | "visualHint", 
@@ -170,7 +166,6 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     saveVisualChanges({ ...outline, slides: updatedSlides })
   }
 
-  // 修改要点 (keyPoints)
   const handleUpdateBullet = (slideIndex: number, bulletIndex: number, val: string) => {
     if (!outline) return
     const updatedSlides = [...outline.slides]
@@ -183,7 +178,6 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     saveVisualChanges({ ...outline, slides: updatedSlides })
   }
 
-  // 增加要点 (keyPoints)
   const handleAddBullet = (slideIndex: number) => {
     if (!outline) return
     const updatedSlides = [...outline.slides]
@@ -194,7 +188,6 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     saveVisualChanges({ ...outline, slides: updatedSlides })
   }
 
-  // 删除要点 (keyPoints)
   const handleDeleteBullet = (slideIndex: number, bulletIndex: number) => {
     if (!outline) return
     const updatedSlides = [...outline.slides]
@@ -205,7 +198,6 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     saveVisualChanges({ ...outline, slides: updatedSlides })
   }
 
-  // 添加新幻灯片页面 (保证类型严格声明)
   const handleAddSlide = () => {
     if (!outline) return
     const newSlide: SlideOutline = {
@@ -218,7 +210,6 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     saveVisualChanges({ ...outline, slides: [...outline.slides, newSlide] })
   }
 
-  // 删除幻灯片页面，并对所有 slide-id 进行顺次重排（保证 slide-1, slide-2 秩序）
   const handleDeleteSlide = (slideIndex: number) => {
     if (!outline) return
     const filtered = outline.slides.filter((_, i) => i !== slideIndex)
@@ -310,6 +301,7 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
           </Card>
         )
 
+      // 1. 设定主题
       case "workspace.topic":
         return (
           <div className="mx-auto max-w-2xl w-full">
@@ -332,6 +324,7 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
           </div>
         )
 
+      // 2. 架构审核（🚀 打碎外层卡片，优化 JSON 区域高度）
       case "workspace.outline":
         if (!outline) {
           return (
@@ -363,200 +356,204 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
         }
         
         return (
-          <Card className="border-border/50 bg-card/60 backdrop-blur-sm shadow-sm">
-            <CardHeader className="pb-5">
-              <CardTitle className="text-lg font-semibold">审核并调整大纲结构</CardTitle>
-              <CardDescription className="text-sm leading-relaxed mt-1">
+          /* 🚀 取消外层大 Card 包装，大标题直接写在主版面上，彻底斩断“卡片套卡片”现象 */
+          <div className="space-y-6 animate-in fade-in duration-300">
+            
+            <div className="space-y-1.5 pb-1">
+              <h2 className="text-lg font-bold text-foreground">审核并调整大纲结构</h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
                 在确认每页的标题、表达目的和要点后，即可一键渲染 PPT 页面。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              
-              {/* 子模式切换双 Tab */}
-              <div className="flex items-center justify-between border-b border-border/30 pb-3 gap-4">
-                <div className="flex rounded-lg bg-muted/60 p-1">
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange("visual")}
-                    className={`flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                      outlineMode === "visual"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <FileTextIcon className="size-4" />
-                    可视化按页编辑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange("json")}
-                    className={`flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                      outlineMode === "json"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <BotIcon className="size-4" />
-                    直接编辑 JSON
-                  </button>
-                </div>
+              </p>
+            </div>
 
-                {/* 顶部一键生成 PPT */}
-                {outlineMode === "visual" && (
-                  <Button
-                    onClick={handleGenerateSVG}
-                    disabled={isGeneratingSVG}
-                    size="sm"
-                    className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 cursor-pointer shadow-xs font-medium"
-                  >
-                    {isGeneratingSVG ? (
-                      <>正在渲染幻灯片...</>
-                    ) : (
-                      <>
-                        一键生成 PPT 页面
-                        <ArrowRightIcon className="size-4" />
-                      </>
-                    )}
-                  </Button>
-                )}
+            {/* 子模式切换双 Tab 独立成条 */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3 gap-4">
+              <div className="flex rounded-lg bg-muted/60 p-1">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("visual")}
+                  className={`flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                    outlineMode === "visual"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileTextIcon className="size-4" />
+                  可视化按页编辑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("json")}
+                  className={`flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                    outlineMode === "json"
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <BotIcon className="size-4" />
+                  直接编辑 JSON
+                </button>
               </div>
 
-              {/* 🚀 Tab A: 类型完全匹配的可视化页面编辑器 */}
+              {/* 顶部一键生成 PPT */}
               {outlineMode === "visual" && (
-                <div className="space-y-6">
-                  {/* PPT 主标题 */}
-                  <div className="rounded-xl border border-border/50 bg-muted/15 p-5 space-y-2">
-                    <label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">PPT 主标题</label>
-                    <input
-                      type="text"
-                      value={outline.title}
-                      onChange={(e) => handleUpdateTitle(e.target.value)}
-                      className="w-full text-xl font-bold bg-transparent border-b border-transparent hover:border-border/60 focus:border-indigo-500 focus:outline-none pb-1 transition-colors"
-                      placeholder="请输入 PPT 主标题"
-                    />
-                    <p className="text-xs text-muted-foreground font-medium">
-                      受众群体：{topic.audience} · 视觉倾向：{topic.style}
-                    </p>
-                  </div>
-
-                  {/* 幻灯片单页循环 (100% 严格类型匹配) */}
-                  <div className="space-y-5">
-                    {outline.slides.map((slide, slideIndex) => {
-                      return (
-                        <div 
-                          key={slideIndex} 
-                          className="relative rounded-xl border border-border/60 bg-muted/10 p-5 space-y-4 hover:border-border transition-all animate-in fade-in duration-200"
-                        >
-                          {/* 标题 & slide-序号 */}
-                          <div className="flex items-center justify-between gap-4">
-                            <input
-                              type="text"
-                              value={slide.title}
-                              onChange={(e) => handleUpdateSlideField(slideIndex, "title", e.target.value)}
-                              className="text-base font-bold text-foreground bg-transparent border-b border-transparent hover:border-border/60 focus:border-indigo-500 focus:outline-none flex-1 pb-0.5 transition-colors"
-                              placeholder="设置页面标题"
-                            />
-                            <div className="flex items-center gap-2 shrink-0 select-none">
-                              <span className="rounded bg-muted px-2 py-1 text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wide">
-                                {slide.id || `slide-${slideIndex + 1}`}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteSlide(slideIndex)}
-                                className="rounded p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                                title="删除此页"
-                              >
-                                <TrashIcon className="size-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* 设计意图 (purpose) */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">设计意图 / 页面功能描述</label>
-                            <input
-                              type="text"
-                              value={slide.purpose}
-                              onChange={(e) => handleUpdateSlideField(slideIndex, "purpose", e.target.value)}
-                              className="w-full text-sm text-muted-foreground bg-transparent border-b border-transparent hover:border-border/60 focus:border-indigo-500 focus:outline-none py-1 transition-colors"
-                              placeholder="描述此页面所承载的逻辑意图，例如：明确课程定位与学习价值"
-                            />
-                          </div>
-
-                          {/* 核心要点 (keyPoints) */}
-                          <div className="space-y-2">
-                            <label className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">本页核心要点</label>
-                            <div className="space-y-2.5 pl-2.5">
-                              {slide.keyPoints.map((point, bulletIndex) => (
-                                <div key={bulletIndex} className="flex items-center gap-2 group">
-                                  <span className="text-muted-foreground/80 text-sm select-none shrink-0">•</span>
-                                  <input
-                                    type="text"
-                                    value={point}
-                                    onChange={(e) => handleUpdateBullet(slideIndex, bulletIndex, e.target.value)}
-                                    className="flex-grow text-sm text-foreground bg-transparent border-b border-transparent hover:border-border/60 focus:border-indigo-500 focus:outline-none pb-0.5 transition-colors"
-                                    placeholder="输入要点内容..."
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteBullet(slideIndex, bulletIndex)}
-                                    className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shrink-0"
-                                    title="删除此要点"
-                                  >
-                                    <TrashIcon className="size-3.5" />
-                                  </button>
-                                </div>
-                              ))}
-                              
-                              <button
-                                type="button"
-                                onClick={() => handleAddBullet(slideIndex)}
-                                className="flex items-center gap-1.5 text-xs text-indigo-500 hover:text-indigo-600 font-semibold transition-colors cursor-pointer pt-1"
-                              >
-                                <PlusIcon className="size-3.5" />
-                                新增核心要点
-                              </button>
-                            </div>
-                          </div>
-
-                          <Separator className="bg-border/30 my-1" />
-
-                          {/* 🚀 新增：单页视觉提示词 (visualHint) 编辑能力 */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
-                              AI 视觉渲染提示词 (Visual Hint)
-                            </label>
-                            <input
-                              type="text"
-                              value={slide.visualHint || ""}
-                              onChange={(e) => handleUpdateSlideField(slideIndex, "visualHint", e.target.value)}
-                              className="w-full text-xs text-muted-foreground/90 bg-transparent border-b border-transparent hover:border-border/60 focus:border-indigo-500 focus:outline-none py-1 transition-colors italic"
-                              placeholder="设置本页特定布局意图，例如：极简左右分栏，右侧使用关系网图..."
-                            />
-                          </div>
-
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* 新增 PPT 幻灯片页面 */}
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleAddSlide}
-                      className="w-full py-6 border-dashed border-2 hover:border-indigo-500/50 hover:bg-indigo-50/5 hover:text-indigo-500 transition-all gap-2 text-sm cursor-pointer"
-                    >
-                      <PlusIcon className="size-4" />
-                      添加新的 PPT 页面
-                    </Button>
-                  </div>
-                </div>
+                <Button
+                  onClick={handleGenerateSVG}
+                  disabled={isGeneratingSVG}
+                  className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 cursor-pointer shadow-xs font-medium text-white"
+                >
+                  {isGeneratingSVG ? (
+                    <>正在渲染幻灯片...</>
+                  ) : (
+                    <>
+                      一键生成 PPT 页面
+                      <ArrowRightIcon className="size-4" />
+                    </>
+                  )}
+                </Button>
               )}
+            </div>
 
-              {/* Tab B: 直接编辑 JSON */}
-              {outlineMode === "json" && (
+            {/* Tab A: 可视化按页编辑器 (直接呈现在暗色背景上，拥有无与伦比的深色轮廓) */}
+            {outlineMode === "visual" && (
+              <div className="space-y-6">
+                
+                {/* PPT 主标题 */}
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-5 space-y-3 shadow-lg shadow-black/40">
+                  <label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">PPT 主标题</label>
+                  <input
+                    type="text"
+                    value={outline.title}
+                    onChange={(e) => handleUpdateTitle(e.target.value)}
+                    className="w-full text-xl font-bold bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 focus:outline-none pb-1 transition-colors text-zinc-100"
+                    placeholder="请输入 PPT 主标题"
+                  />
+                  <p className="text-sm text-zinc-400 font-medium leading-relaxed">
+                    受众群体：<span className="text-zinc-300">{topic.audience}</span> · 视觉倾向：<span className="text-zinc-300">{topic.style}</span>
+                  </p>
+                </div>
+
+                {/* 幻灯片单页卡片 */}
+                <div className="space-y-5">
+                  {outline.slides.map((slide, slideIndex) => {
+                    return (
+                      <div 
+                        key={slideIndex} 
+                        className="relative rounded-xl border border-zinc-800 bg-zinc-900/90 p-6 space-y-5 hover:border-zinc-700 hover:bg-zinc-900/100 transition-all shadow-xl shadow-black/50"
+                      >
+                        {/* 标题 & slide-序号 */}
+                        <div className="flex items-center justify-between gap-4">
+                          <input
+                            type="text"
+                            value={slide.title}
+                            onChange={(e) => handleUpdateSlideField(slideIndex, "title", e.target.value)}
+                            className="text-base font-bold text-zinc-100 bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 focus:outline-none flex-1 pb-0.5 transition-colors"
+                            placeholder="设置页面标题"
+                          />
+                          <div className="flex items-center gap-2 shrink-0 select-none">
+                            <span className="rounded bg-zinc-800 px-2.5 py-1 text-xs font-mono font-semibold text-zinc-300 uppercase tracking-wide border border-zinc-700/50">
+                              {slide.id || `slide-${slideIndex + 1}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSlide(slideIndex)}
+                              className="rounded p-1.5 text-zinc-400 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                              title="删除此页"
+                            >
+                              <TrashIcon className="size-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 设计意图 (purpose) */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">设计意图 / 页面功能描述</label>
+                          <input
+                            type="text"
+                            value={slide.purpose}
+                            onChange={(e) => handleUpdateSlideField(slideIndex, "purpose", e.target.value)}
+                            className="w-full text-sm text-zinc-200 bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 focus:outline-none py-1 transition-colors placeholder:text-zinc-500"
+                            placeholder="描述此页面所承载的逻辑意图，例如：明确课程定位与学习价值"
+                          />
+                        </div>
+
+                        {/* 核心要点 (keyPoints) */}
+                        <div className="space-y-3">
+                          <label className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">本页核心要点</label>
+                          <div className="space-y-3 pl-2.5">
+                            {slide.keyPoints.map((point, bulletIndex) => (
+                              <div key={bulletIndex} className="flex items-center gap-2.5 group">
+                                <span className="text-indigo-400 text-sm select-none shrink-0">•</span>
+                                <input
+                                  type="text"
+                                  value={point}
+                                  onChange={(e) => handleUpdateBullet(slideIndex, bulletIndex, e.target.value)}
+                                  className="flex-grow text-sm text-zinc-200 bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 focus:outline-none pb-0.5 transition-colors placeholder:text-zinc-500"
+                                  placeholder="输入要点内容..."
+                                  required
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBullet(slideIndex, bulletIndex)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-400 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shrink-0"
+                                  title="删除此要点"
+                                >
+                                  <TrashIcon className="size-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            
+                            <button
+                              type="button"
+                              onClick={() => handleAddBullet(slideIndex)}
+                              className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors cursor-pointer pt-1"
+                            >
+                              <PlusIcon className="size-3.5" />
+                              新增核心要点
+                            </button>
+                          </div>
+                        </div>
+
+                        <Separator className="bg-zinc-800/80 my-1" />
+
+                        {/* AI视觉提示词 (visualHint) */}
+                        <div className="space-y-2">
+                          <label className="text-xs text-indigo-400/90 dark:text-indigo-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                            <SparklesIcon className="size-3.5" />
+                            AI 视觉渲染提示词 (Visual Hint)
+                          </label>
+                          <input
+                            type="text"
+                            value={slide.visualHint || ""}
+                            onChange={(e) => handleUpdateSlideField(slideIndex, "visualHint", e.target.value)}
+                            className="w-full text-xs text-zinc-300 dark:text-zinc-300 font-medium bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-indigo-500 focus:outline-none py-1.5 transition-colors italic placeholder:text-zinc-600"
+                            placeholder="设置本页特定布局意图，例如：深色渐变背景，中央放置发光图标..."
+                          />
+                        </div>
+
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 新增 PPT 幻灯片页面 */}
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddSlide}
+                    className="w-full py-6 border-dashed border-2 border-zinc-800 hover:border-indigo-500/50 hover:bg-indigo-50/5 hover:text-indigo-500 transition-all gap-2 text-sm cursor-pointer"
+                  >
+                    <PlusIcon className="size-4" />
+                    添加新的 PPT 页面
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 🚀 Tab B: 直接编辑 JSON (增加 max-h-[600px] 与 overflow-y-auto，绝不无限拖长) */}
+            {outlineMode === "json" && (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 shadow-inner shadow-black/45">
                 <OutlineEditor
                   outline={outline}
                   draft={outlineDraft}
@@ -566,10 +563,10 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
                   onApply={handleApplyOutline}
                   onGenerateSVG={handleGenerateSVG}
                 />
-              )}
+              </div>
+            )}
 
-            </CardContent>
-          </Card>
+          </div>
         )
 
       // 3. 幻灯片预览
@@ -608,13 +605,23 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
             </div>
           )
         }
+        
+        // 幻灯片预览区域也取消嵌套 Card，整体感更强
         return (
-          <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-sm p-6 shadow-sm">
-            <SVGPreviewGrid
-              slides={svgs}
-              isExporting={isExportingPPTX}
-              onExportPPTX={handleExportPPTX}
-            />
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="space-y-1.5 pb-1">
+              <h2 className="text-lg font-bold text-foreground">幻灯片预览与导出</h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                预览渲染出来的多页 SVG 幻灯片，确认效果后一键打包导出。
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm p-6 shadow-xl shadow-black/45">
+              <SVGPreviewGrid
+                slides={svgs}
+                isExporting={isExportingPPTX}
+                onExportPPTX={handleExportPPTX}
+              />
+            </div>
           </div>
         )
 
@@ -635,13 +642,11 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
         {isOverview ? (
           <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-stretch">
             
-            {/* 左侧模型状态 */}
+            {/* 左侧角色模型状态 */}
             <Card className="h-full flex flex-col border-border/50 bg-card/60 backdrop-blur-sm shadow-sm animate-in fade-in duration-300">
               <CardHeader className="pb-3.5">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <BotIcon className="h-4.5 w-4.5 text-indigo-500 shrink-0" />
-                  角色模型状态
-                </CardTitle>
+                <BotIcon className="h-4.5 w-4.5 text-indigo-500 shrink-0" />
+                角色模型状态
                 <CardDescription className="text-xs leading-relaxed mt-0.5">
                   系统根据后台配置自动分发任务
                 </CardDescription>
