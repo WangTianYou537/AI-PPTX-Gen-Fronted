@@ -3,9 +3,9 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getMe, getSetupStatus, logout } from "@/lib/api"
+import { getMe, getMyQuota, getSetupStatus, logout } from "@/lib/api"
 import { findPage, getDefaultPage, isPageVisible, type AppPageId } from "@/lib/navigation"
-import type { User } from "@/lib/types"
+import type { EffectiveQuota, User } from "@/lib/types"
 import { AppPageRenderer } from "@/components/app-page-renderer"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
@@ -20,6 +20,7 @@ export function AppShell() {
   const router = useRouter()
   const [state, setState] = React.useState<AppState>("loading")
   const [user, setUser] = React.useState<User | null>(null)
+  const [quota, setQuota] = React.useState<EffectiveQuota | null>(null)
   const [activePage, setActivePage] = React.useState<AppPageId>("workspace.overview")
   const [error, setError] = React.useState("")
 
@@ -41,6 +42,7 @@ export function AppShell() {
             return
           }
           setUser(me.user)
+          getMyQuota().then((nextQuota) => { if (active) setQuota(nextQuota) }).catch(() => {})
           setState("ready")
         } catch {
           if (active) {
@@ -71,6 +73,7 @@ export function AppShell() {
       toast.error(err instanceof Error ? err.message : "退出失败")
     } finally {
       setUser(null)
+      setQuota(null)
       setActivePage("workspace.overview")
       setState("login")
       router.push("/login")
@@ -122,6 +125,7 @@ export function AppShell() {
       <DashboardSidebar
         variant="inset"
         user={user}
+        quota={quota}
         activePage={effectivePage}
         onPageChange={setActivePage}
         onLogout={handleLogout}
@@ -139,7 +143,7 @@ export function AppShell() {
             ) : null}
 
             {/* 🚀 传入 onPageChange，让页面渲染器有能力更新侧栏高亮状态 */}
-            <AppPageRenderer page={effectivePage} user={user} onPageChange={setActivePage} />
+            <AppPageRenderer page={effectivePage} user={user} onPageChange={setActivePage} onQuotaChange={setQuota} />
           </div>
         </div>
       </SidebarInset>

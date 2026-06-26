@@ -3,7 +3,7 @@
 import * as React from "react"
 import type { AppPageId } from "@/lib/navigation"
 import { filterMenuByRole } from "@/lib/navigation"
-import type { User } from "@/lib/types"
+import type { EffectiveQuota, User } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import {
   Sidebar,
@@ -44,6 +44,7 @@ type DashboardSidebarProps = React.ComponentProps<typeof Sidebar> & {
   activePage: AppPageId
   onPageChange: (page: AppPageId) => void
   onLogout: () => void
+  quota?: EffectiveQuota | null
 }
 
 type MenuGroup = ReturnType<typeof filterMenuByRole>[number]
@@ -182,11 +183,13 @@ export function DashboardSidebar({
   activePage,
   onPageChange,
   onLogout,
+  quota,
   ...props
 }: DashboardSidebarProps) {
   const menu = filterMenuByRole(user.role)
-  const aiCredits = { used: 32, total: 100 }
-  const creditPercentage = Math.min(100, Math.max(0, (aiCredits.used / aiCredits.total) * 100))
+  const slideTotal = quota?.dailySlideLimit ?? 0
+  const slideUsed = quota?.slidesUsed ?? 0
+  const creditPercentage = slideTotal > 0 ? Math.min(100, Math.max(0, (slideUsed / slideTotal) * 100)) : 0
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-sidebar-border/50">
@@ -241,7 +244,7 @@ export function DashboardSidebar({
                   AI 算力额度
                 </span>
                 <span className="font-bold text-foreground">
-                  {aiCredits.used} / {aiCredits.total} 点
+                  {slideUsed} / {slideTotal} 页
                 </span>
               </div>
               <div className="mt-3 h-1.5 w-full rounded-full bg-sidebar-border/50 overflow-hidden">
@@ -251,7 +254,7 @@ export function DashboardSidebar({
                 />
               </div>
               <p className="mt-2 text-xs text-muted-foreground/70 leading-normal">
-                每日重置 · 升级解锁无限额度
+                {quota ? `剩余 ${quota.slidesRemaining} 页` : "正在加载今日额度..."}
               </p>
             </div>
           </SidebarMenuItem>
@@ -280,10 +283,10 @@ export function DashboardSidebar({
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-900/50 shrink-0">
-                      {userInitial(user.email)}
+                      {userInitial(user.username || user.email)}
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
-                      <span className="truncate font-semibold text-foreground">{user.email}</span>
+                      <span className="truncate font-semibold text-foreground">{user.username || user.email}</span>
                       <span className="truncate text-xs text-muted-foreground/85 mt-0.5">
                         {ROLE_LABELS[user.role] || "成员"}
                       </span>
@@ -301,10 +304,10 @@ export function DashboardSidebar({
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2.5 px-3 py-2.5 text-left text-sm">
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-900/50 shrink-0">
-                      {userInitial(user.email)}
+                      {userInitial(user.username || user.email)}
                     </div>
                     <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
-                      <span className="truncate font-semibold text-foreground">{user.email}</span>
+                      <span className="truncate font-semibold text-foreground">{user.username || user.email}</span>
                       <span className="truncate text-xs text-muted-foreground mt-0.5">{ROLE_LABELS[user.role] || "成员"}</span>
                     </div>
                     <Badge 

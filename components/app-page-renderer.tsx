@@ -1,12 +1,14 @@
 "use client"
 
-import type { User } from "@/lib/types"
+import type { EffectiveQuota, User } from "@/lib/types"
 import type { AppPageId } from "@/lib/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { PPTWorkspace } from "@/components/ppt-workspace"
 import { PromptSettingsPanel } from "@/components/prompt-settings"
 import { StorageSettings } from "@/components/storage-settings"
+import { SystemSettingsPanel } from "@/components/system-settings"
+import { UserGroupManagement } from "@/components/user-group-management"
 import { UserManagement } from "@/components/user-management"
 import { AlertCircleIcon, BadgeCheckIcon, SettingsIcon, WandSparklesIcon } from "lucide-react"
 
@@ -14,9 +16,10 @@ type AppPageRendererProps = {
   page: AppPageId
   user: User
   onPageChange: (page: AppPageId) => void
+  onQuotaChange?: (quota: EffectiveQuota) => void
 }
 
-export function AppPageRenderer({ page, user, onPageChange }: AppPageRendererProps) {
+export function AppPageRenderer({ page, user, onPageChange, onQuotaChange }: AppPageRendererProps) {
   // 权限检查
   if (page.startsWith("admin.") && user.role !== "admin") {
     return (
@@ -35,6 +38,7 @@ export function AppPageRenderer({ page, user, onPageChange }: AppPageRendererPro
         compact
         activePage={page}
         onPageChange={onPageChange}
+        onQuotaChange={onQuotaChange}
       />
     )
   }
@@ -43,6 +47,10 @@ export function AppPageRenderer({ page, user, onPageChange }: AppPageRendererPro
   switch (page) {
     case "admin.users":
       return <UserManagement currentUser={user} />
+    case "admin.groups":
+      return <UserGroupManagement />
+    case "admin.settings":
+      return <SystemSettingsPanel />
     case "admin.roles":
       return <PromptSettingsPanel />
     case "admin.storage":

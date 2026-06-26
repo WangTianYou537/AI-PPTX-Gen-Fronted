@@ -3,7 +3,7 @@
 import * as React from "react"
 import { toast } from "sonner"
 import { exportPPTX, generateOutline, generateSVG } from "@/lib/api"
-import type { PresentationOutline, SlideSVG, TopicInput, SlideOutline } from "@/lib/types"
+import type { EffectiveQuota, PresentationOutline, SlideSVG, TopicInput, SlideOutline } from "@/lib/types"
 import type { AppPageId } from "@/lib/navigation"
 import { DebugErrorAlert } from "@/components/debug-error-alert"
 import { OutlineEditor } from "@/components/outline-editor"
@@ -35,6 +35,7 @@ type PPTWorkspaceProps = {
   compact?: boolean
   activePage: AppPageId
   onPageChange: (page: AppPageId) => void
+  onQuotaChange?: (quota: EffectiveQuota) => void
 }
 
 function safeFilename(title: string) {
@@ -42,7 +43,7 @@ function safeFilename(title: string) {
   return cleaned || "ppt-gen"
 }
 
-export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTWorkspaceProps) {
+export function PPTWorkspace({ compact = false, activePage, onPageChange, onQuotaChange }: PPTWorkspaceProps) {
   const [topic, setTopic] = React.useState<TopicInput>(defaultTopic)
   const [outline, setOutline] = React.useState<PresentationOutline | null>(null)
   const [outlineDraft, setOutlineDraft] = React.useState("")
@@ -103,6 +104,9 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange }: PPTW
     try {
       const response = await generateSVG(outline)
       setSVGs(response.slides)
+      if (response.quota) {
+        onQuotaChange?.(response.quota)
+      }
       toast.success("PPT 页面已生成")
       onPageChange("workspace.ppt")
     } catch (err) {
