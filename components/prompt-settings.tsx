@@ -15,8 +15,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { AlertCircleIcon, Loader2Icon, RotateCcwIcon, SaveIcon } from "lucide-react"
 
 const providerDefaults: Record<Provider, Pick<ModelConfig, "baseURL" | "model">> = {
-  openai: { baseURL: "https://api.openai.com/v1", model: "gpt-4.1" },
-  gemini: { baseURL: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-2.5-pro" },
+  openai: { baseURL: "https://api.openai.com/v1", model: "gpt-5.5" },
+  gemini: { baseURL: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-3.5-flash" },
   claude: { baseURL: "https://api.anthropic.com/v1", model: "claude-opus-4-8" },
 }
 
