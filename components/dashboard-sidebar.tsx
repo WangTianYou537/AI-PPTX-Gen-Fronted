@@ -34,7 +34,6 @@ import {
   LayoutDashboardIcon, 
   LogOutIcon, 
   Sparkles, 
-  HelpCircle, 
   ChevronRight, 
   ChevronsUpDown 
 } from "lucide-react"
@@ -257,17 +256,6 @@ export function DashboardSidebar({
                 {quota ? `剩余 ${quota.slidesRemaining} 页` : "正在加载今日额度..."}
               </p>
             </div>
-          </SidebarMenuItem>
-
-          {/* 帮助与反馈：字号升级为 text-sm */}
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              tooltip="帮助与反馈" 
-              className="h-10 hover:bg-sidebar-accent/50 text-muted-foreground hover:text-foreground transition-colors text-sm"
-            >
-              <HelpCircle className="size-4 opacity-80 shrink-0" />
-              <span className="font-medium">帮助与反馈</span>
-            </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarSeparator className="my-1 opacity-50" />

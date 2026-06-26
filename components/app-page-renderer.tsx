@@ -85,7 +85,7 @@ function HelpPage({ isAdmin }: { isAdmin: boolean }) {
           <ol className="flex list-decimal flex-col gap-2.5 pl-4 text-sm text-muted-foreground leading-relaxed">
             <li>输入演示主题、目标受众、期望页数和视觉风格。</li>
             <li>生成 PPT 架构后，对页面大纲进行审核与可视化修改。</li>
-            <li>渲染各页面高保真 SVG，预览排版效果。</li>
+            <li>渲染各 PPT 页面，预览排版效果。</li>
             <li>确认演示大纲与版面效果无误后，一键导出为标准的 PPTX。</li>
           </ol>
         </CardContent>
@@ -103,8 +103,7 @@ function HelpPage({ isAdmin }: { isAdmin: boolean }) {
         <CardContent>
           <div className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed">
             <p><strong>PPT 架构师</strong>负责输出合理、有深度、逻辑性强的多级结构化大纲。</p>
-            <p><strong>PPT-SVG 生成器</strong>负责将大纲细节转换并渲染为支持实时预览的高保真卡片。</p>
-            <p>完美支持主流的 OpenAI-compatible、Gemini、Claude 等模型接口配置。</p>
+            <p><strong>PPT 页面生成器</strong>负责将大纲细节转换并渲染为支持实时预览的高保真卡片。</p>
           </div>
         </CardContent>
       </Card>

@@ -38,8 +38,8 @@ export class APIRequestError extends Error {
   }
 }
 
-type UserPayload = { email?: string; username?: string; password?: string; role?: UserRole; disabled?: boolean; groupId?: string; dailyPPTLimit?: number | null; dailySlideLimit?: number | null }
-type UserGroupPayload = { name?: string; description?: string; dailyPPTLimit?: number; dailySlideLimit?: number; isDefault?: boolean }
+type UserPayload = { email?: string; username?: string; password?: string; role?: UserRole; disabled?: boolean; groupId?: string; dailyPPTLimit?: number | null; dailySlideLimit?: number | null; slideConcurrencyLimit?: number | null }
+type UserGroupPayload = { name?: string; description?: string; dailyPPTLimit?: number; dailySlideLimit?: number; slideConcurrencyLimit?: number; isDefault?: boolean }
 
 async function parseAPIError(response: Response, path: string, method: string): Promise<APIRequestError> {
   const raw = await response.text().catch(() => "")
@@ -66,13 +66,13 @@ export function logout() { return postJSON<{ ok: boolean }>("/api/auth/logout", 
 export function getMe() { return requestJSON<AuthResponse>("/api/auth/me") }
 export function getMyQuota() { return requestJSON<EffectiveQuota>("/api/me/quota") }
 export function listUsers() { return requestJSON<{ users: User[] }>("/api/admin/users") }
-export function createUser(payload: Required<Pick<UserPayload, "email" | "password">> & Pick<UserPayload, "username" | "role" | "disabled" | "groupId" | "dailyPPTLimit" | "dailySlideLimit">) { return postJSON<User>("/api/admin/users", payload) }
+export function createUser(payload: Required<Pick<UserPayload, "email" | "password">> & Pick<UserPayload, "username" | "role" | "disabled" | "groupId" | "dailyPPTLimit" | "dailySlideLimit" | "slideConcurrencyLimit">) { return postJSON<User>("/api/admin/users", payload) }
 export function updateUser(id: string, payload: UserPayload) { return requestJSON<User>(`/api/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }) }
 export function deleteUser(id: string) { return requestJSON<{ ok: boolean }>(`/api/admin/users/${id}`, { method: "DELETE" }) }
 export function getAdminSettings() { return requestJSON<SystemSettings>("/api/admin/settings") }
-export function saveAdminSettings(payload: Pick<SystemSettings, "registrationEnabled" | "defaultUserGroupId">) { return requestJSON<SystemSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(payload) }) }
+export function saveAdminSettings(payload: Pick<SystemSettings, "registrationEnabled" | "defaultUserGroupId" | "defaultSlideConcurrencyLimit">) { return requestJSON<SystemSettings>("/api/admin/settings", { method: "PUT", body: JSON.stringify(payload) }) }
 export function listUserGroups() { return requestJSON<{ groups: UserGroup[] }>("/api/admin/groups") }
-export function createUserGroup(payload: Required<Pick<UserGroupPayload, "name" | "dailyPPTLimit" | "dailySlideLimit">> & Pick<UserGroupPayload, "description" | "isDefault">) { return postJSON<UserGroup>("/api/admin/groups", payload) }
+export function createUserGroup(payload: Required<Pick<UserGroupPayload, "name" | "dailyPPTLimit" | "dailySlideLimit">> & Pick<UserGroupPayload, "description" | "slideConcurrencyLimit" | "isDefault">) { return postJSON<UserGroup>("/api/admin/groups", payload) }
 export function updateUserGroup(id: string, payload: UserGroupPayload) { return requestJSON<UserGroup>(`/api/admin/groups/${id}`, { method: "PATCH", body: JSON.stringify(payload) }) }
 export function deleteUserGroup(id: string) { return requestJSON<{ ok: boolean }>(`/api/admin/groups/${id}`, { method: "DELETE" }) }
 export function getPrompts() { return requestJSON<PromptSettings>("/api/admin/prompts") }
