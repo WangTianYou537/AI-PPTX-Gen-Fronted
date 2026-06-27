@@ -53,7 +53,7 @@ export function LoginForm({
         try {
           await getMe()
           if (active) {
-            router.replace("/")
+            router.replace("/workspace")
           }
         } catch {
           // Stay on the login page.
@@ -82,7 +82,7 @@ export function LoginForm({
     try {
       await login(email, password)
       toast.success("登录成功")
-      router.push("/")
+      router.push("/workspace")
     } catch (err) {
       setError(err)
       toast.error(err instanceof Error ? err.message : "登录失败")
@@ -108,7 +108,7 @@ export function LoginForm({
                   <AlertCircleIcon />
                   <AlertTitle>需要初始化管理员</AlertTitle>
                   <AlertDescription>
-                    当前系统还没有管理员账号，请先回到首页完成安装引导。
+                    当前系统还没有管理员账号，请先进入安装引导完成初始化。
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -139,7 +139,7 @@ export function LoginForm({
               <Field>
                 {needsSetup ? (
                   <Button asChild>
-                    <Link href="/">返回安装引导</Link>
+                    <Link href="/workspace">进入安装引导</Link>
                   </Button>
                 ) : (
                   <Button type="submit" disabled={isChecking || isSubmitting || !email || !password}>

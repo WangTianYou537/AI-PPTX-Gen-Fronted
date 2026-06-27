@@ -616,7 +616,7 @@ export function PPTWorkspace({ compact = false, activePage, onPageChange, onQuot
             <div className="space-y-1.5 pb-1">
               <h2 className="text-lg font-bold text-foreground">幻灯片预览与导出</h2>
               <p className="text-sm text-zinc-400 leading-relaxed">
-                预览渲染出来的多页 SVG 幻灯片，确认效果后一键打包导出。
+                预览渲染出来的多页 PPT 幻灯片，确认效果后一键打包导出。
               </p>
             </div>
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm p-6 shadow-xl shadow-black/45">

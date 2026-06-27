@@ -32,7 +32,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         if (!active) return
         setNeedsSetup(setup.needsSetup)
         if (setup.needsSetup) return
-        try { await getMe(); if (active) router.replace("/") } catch {}
+        try { await getMe(); if (active) router.replace("/workspace") } catch {}
       } catch (err) { if (active) setError(err) } finally { if (active) setIsChecking(false) }
     }
     void checkAuthState()
@@ -48,7 +48,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     try {
       await register(email, password, username)
       toast.success("注册成功")
-      router.push("/")
+      router.push("/workspace")
     } catch (err) {
       setError(err)
       toast.error(err instanceof Error ? err.message : "注册失败")
@@ -87,7 +87,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
               <Input id="signup-confirm-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} disabled={isChecking || needsSetup} required minLength={8} />
             </Field>
             <Field>
-              {needsSetup ? <Button asChild><Link href="/">返回安装引导</Link></Button> : (
+              {needsSetup ? <Button asChild><Link href="/workspace">进入安装引导</Link></Button> : (
                 <Button type="submit" disabled={isChecking || isSubmitting || !email || !password || !confirmPassword}>
                   {isSubmitting ? <Loader2Icon data-icon="inline-start" className="animate-spin" /> : <UserPlusIcon data-icon="inline-start" />}
                   注册

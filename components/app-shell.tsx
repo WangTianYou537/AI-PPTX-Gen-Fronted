@@ -10,6 +10,7 @@ import type { EffectiveQuota, User } from "@/lib/types"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Skeleton } from "@/components/ui/skeleton"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AlertCircleIcon, Loader2Icon } from "lucide-react"
@@ -100,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (state === "loading") {
-    return <ShellLoading label="正在加载..." />
+    return <ShellSkeleton />
   }
 
   if (state === "setup") {
@@ -162,6 +163,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarProvider>
       </TooltipProvider>
     </AppShellContext.Provider>
+  )
+}
+
+function ShellSkeleton() {
+  return (
+    <main className="min-h-svh bg-background">
+      <div className="flex min-h-svh">
+        <aside className="hidden w-72 shrink-0 border-r p-4 md:flex md:flex-col">
+          <div className="flex items-center gap-3 py-1">
+            <Skeleton className="size-9 rounded-lg" />
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          </div>
+          <div className="mt-8 flex flex-col gap-3">
+            <Skeleton className="h-9 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full rounded-lg" />
+            <Skeleton className="h-9 w-5/6 rounded-lg" />
+          </div>
+          <div className="mt-auto flex flex-col gap-3">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
+        </aside>
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-14 items-center gap-3 border-b px-4 md:px-6">
+            <Skeleton className="size-8 rounded-lg" />
+            <Skeleton className="h-4 w-40" />
+          </header>
+          <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Skeleton className="h-40 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
+            </div>
+            <Skeleton className="h-80 rounded-xl" />
+          </div>
+        </section>
+      </div>
+    </main>
   )
 }
 

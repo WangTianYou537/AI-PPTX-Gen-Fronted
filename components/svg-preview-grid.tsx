@@ -29,7 +29,7 @@ export function SVGPreviewGrid({ slides, isExporting = false, onExportPPTX }: SV
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-medium">PPT 页面预览</h3>
-          <p className="text-sm text-muted-foreground">共 {slides.length} 页，可复制单页 或导出为 PPTX。</p>
+          <p className="text-sm text-muted-foreground">共 {slides.length} 页，可导出为 PPTX。</p>
         </div>
         {onExportPPTX ? (
           <Button onClick={onExportPPTX} disabled={isExporting}>
