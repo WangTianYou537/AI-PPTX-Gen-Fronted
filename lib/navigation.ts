@@ -8,6 +8,19 @@ export type AppMenuItem = { id: AppPageId; title: string; description: string; r
 export type AppMenuGroup = { id: string; title: string; description: string; role: RoleVisibility; icon: LucideIcon; items: AppMenuItem[] }
 export type AppPageMeta = AppMenuItem & { groupId: string; groupTitle: string; groupDescription: string }
 
+const PAGE_PATHS: Record<AppPageId, string> = {
+  "workspace.overview": "/workspace",
+  "workspace.topic": "/workspace/topic",
+  "workspace.outline": "/workspace/outline",
+  "workspace.ppt": "/workspace/ppt",
+  "admin.users": "/admin/users",
+  "admin.groups": "/admin/groups",
+  "admin.settings": "/admin/settings",
+  "admin.roles": "/admin/roles",
+  "admin.storage": "/admin/storage",
+  "system.help": "/help",
+}
+
 export const APP_MENU: AppMenuGroup[] = [
   { id: "workspace", title: "PPT 生成", description: "从主题到 PPTX 的完整生成流程", role: "all", icon: WandSparklesIcon, items: [
     { id: "workspace.overview", title: "工作台总览", description: "统一管理主题输入、架构审核、PPT 预览和 PPTX 导出。", role: "all", icon: LayoutDashboardIcon },
@@ -32,3 +45,18 @@ export function filterMenuByRole(role: UserRole) { return APP_MENU.filter((group
 export function getDefaultPage(): AppPageId { return "workspace.overview" }
 export function findPage(pageId: AppPageId): AppPageMeta { for (const group of APP_MENU) { const item = group.items.find((entry) => entry.id === pageId); if (item) return { ...item, groupId: group.id, groupTitle: group.title, groupDescription: group.description } } return findPage(getDefaultPage()) }
 export function isPageVisible(pageId: AppPageId, role: UserRole) { return canAccessRole(findPage(pageId).role, role) }
+export function isAdminPage(pageId: AppPageId) { return pageId.startsWith("admin.") }
+export function pageIdToPath(pageId: AppPageId) { return PAGE_PATHS[pageId] }
+export function pathToPageId(pathname: string): AppPageId {
+  const normalized = pathname.replace(/\/$/, "") || "/"
+  const entry = Object.entries(PAGE_PATHS).find(([, path]) => path === normalized)
+  if (entry) return entry[0] as AppPageId
+  if (normalized.startsWith("/workspace")) return "workspace.overview"
+  if (normalized.startsWith("/admin/users")) return "admin.users"
+  if (normalized.startsWith("/admin/groups")) return "admin.groups"
+  if (normalized.startsWith("/admin/settings")) return "admin.settings"
+  if (normalized.startsWith("/admin/roles")) return "admin.roles"
+  if (normalized.startsWith("/admin/storage")) return "admin.storage"
+  if (normalized.startsWith("/help")) return "system.help"
+  return getDefaultPage()
+}

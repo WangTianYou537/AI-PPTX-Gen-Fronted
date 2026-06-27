@@ -1,27 +1,47 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import dynamic from "next/dynamic"
+import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { getMe, getMyQuota, getSetupStatus, logout } from "@/lib/api"
-import { findPage, getDefaultPage, isPageVisible, type AppPageId } from "@/lib/navigation"
+import { findPage, getDefaultPage, isAdminPage, isPageVisible, pageIdToPath, pathToPageId, type AppPageId } from "@/lib/navigation"
 import type { EffectiveQuota, User } from "@/lib/types"
-import { AppPageRenderer } from "@/components/app-page-renderer"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
-import { SetupWizard } from "@/components/setup-wizard"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { AlertCircleIcon, Loader2Icon } from "lucide-react"
+
+const SetupWizard = dynamic(() => import("@/components/setup-wizard").then((mod) => mod.SetupWizard), {
+  loading: () => <ShellLoading label="正在加载初始化向导..." />,
+})
 
 type AppState = "loading" | "setup" | "login" | "ready"
 
-export function AppShell() {
+type AppShellContextValue = {
+  user: User
+  quota: EffectiveQuota | null
+  setQuota: (quota: EffectiveQuota | null) => void
+}
+
+const AppShellContext = React.createContext<AppShellContextValue | null>(null)
+
+export function useAppShell() {
+  const context = React.useContext(AppShellContext)
+  if (!context) {
+    throw new Error("useAppShell must be used within AppShell")
+  }
+  return context
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const router = useRouter()
   const [state, setState] = React.useState<AppState>("loading")
   const [user, setUser] = React.useState<User | null>(null)
   const [quota, setQuota] = React.useState<EffectiveQuota | null>(null)
-  const [activePage, setActivePage] = React.useState<AppPageId>("workspace.overview")
   const [error, setError] = React.useState("")
 
   React.useEffect(() => {
@@ -74,79 +94,94 @@ export function AppShell() {
     } finally {
       setUser(null)
       setQuota(null)
-      setActivePage("workspace.overview")
       setState("login")
       router.push("/login")
     }
   }
 
   if (state === "loading") {
-    return (
-      <main className="flex min-h-svh items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2Icon className="animate-spin" />
-          正在加载...
-        </div>
-      </main>
-    )
+    return <ShellLoading label="正在加载..." />
   }
 
   if (state === "setup") {
-    return <SetupWizard onReady={(nextUser) => { setUser(nextUser); setState("ready") }} />
+    return <SetupWizard onReady={(nextUser) => { setUser(nextUser); setState("ready"); router.replace("/workspace") }} />
   }
 
   if (state === "login") {
-    return (
-      <main className="flex min-h-svh items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2Icon className="animate-spin" />
-          正在跳转登录页...
-        </div>
-      </main>
-    )
+    return <ShellLoading label="正在跳转登录页..." />
   }
 
   if (!user) {
     return null
   }
 
+  const activePage = pathToPageId(pathname)
   const effectivePage = isPageVisible(activePage, user.role) ? activePage : getDefaultPage()
   const pageMeta = findPage(effectivePage)
 
-  return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 14)",
-        } as React.CSSProperties
-      }
-    >
-      <DashboardSidebar
-        variant="inset"
-        user={user}
-        quota={quota}
-        activePage={effectivePage}
-        onPageChange={setActivePage}
-        onLogout={handleLogout}
-      />
-      <SidebarInset>
-        <DashboardHeader page={pageMeta} />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-            {error ? (
-              <Alert variant="destructive">
-                <AlertCircleIcon />
-                <AlertTitle>加载提示</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
+  function handlePageChange(page: AppPageId) {
+    router.push(pageIdToPath(page))
+  }
 
-            {/* 🚀 传入 onPageChange，让页面渲染器有能力更新侧栏高亮状态 */}
-            <AppPageRenderer page={effectivePage} user={user} onPageChange={setActivePage} onQuotaChange={setQuota} />
-          </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+  const content = isAdminPage(activePage) && user.role !== "admin" ? <UnauthorizedAlert /> : children
+
+  return (
+    <AppShellContext.Provider value={{ user, quota, setQuota }}>
+      <TooltipProvider>
+        <SidebarProvider
+          style={
+            {
+              "--sidebar-width": "calc(var(--spacing) * 72)",
+              "--header-height": "calc(var(--spacing) * 14)",
+            } as React.CSSProperties
+          }
+        >
+          <DashboardSidebar
+            variant="inset"
+            user={user}
+            quota={quota}
+            activePage={effectivePage}
+            onPageChange={handlePageChange}
+            onLogout={handleLogout}
+          />
+          <SidebarInset>
+            <DashboardHeader page={pageMeta} />
+            <div className="flex flex-1 flex-col">
+              <div className="@container/main flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+                {error ? (
+                  <Alert variant="destructive">
+                    <AlertCircleIcon />
+                    <AlertTitle>加载提示</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                ) : null}
+                {content}
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </TooltipProvider>
+    </AppShellContext.Provider>
+  )
+}
+
+function ShellLoading({ label }: { label: string }) {
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-background">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2Icon className="animate-spin" />
+        {label}
+      </div>
+    </main>
+  )
+}
+
+function UnauthorizedAlert() {
+  return (
+    <Alert variant="destructive" className="border-destructive/30 bg-destructive/5 text-destructive">
+      <AlertCircleIcon />
+      <AlertTitle className="text-sm font-semibold">无权限访问</AlertTitle>
+      <AlertDescription className="mt-1 text-sm">当前账号没有后台管理权限。</AlertDescription>
+    </Alert>
   )
 }
