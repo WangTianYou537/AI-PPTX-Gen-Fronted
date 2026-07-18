@@ -1,6 +1,10 @@
 import type {
   AuthResponse,
+  BootstrapResponse,
   EffectiveQuota,
+  GenerationJob,
+  LLMModelInfo,
+  LLMProvider,
   PresentationOutline,
   PromptSettings,
   SetupStatus,
@@ -58,6 +62,7 @@ async function requestJSON<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function postJSON<T>(path: string, payload: unknown): Promise<T> { return requestJSON<T>(path, { method: "POST", body: JSON.stringify(payload) }) }
 export function getSetupStatus() { return requestJSON<SetupStatus>("/api/setup/status") }
+export function getBootstrap() { return requestJSON<BootstrapResponse>("/api/bootstrap") }
 export function setupAdmin(email: string, password: string, storage?: StorageConfig, username?: string) { return postJSON<AuthResponse>("/api/setup/admin", { email, username, password, storage }) }
 export function testSetupStorage(storage: StorageConfig) { return postJSON<{ ok: boolean }>("/api/setup/storage/test", { storage }) }
 export function login(email: string, password: string) { return postJSON<AuthResponse>("/api/auth/login", { email, password }) }
@@ -90,3 +95,15 @@ export async function exportPPTX(title: string, slides: SlideSVG[]) {
 }
 export function generateOutline(input: TopicInput) { return postJSON<PresentationOutline>("/api/architect", input) }
 export function generateSVG(outline: PresentationOutline) { return postJSON<SVGResponse>("/api/generate-svg", { outline }) }
+export function createOutlineJob(input: TopicInput) { return postJSON<GenerationJob>("/api/jobs/outline", input) }
+export function createSVGJob(outline: PresentationOutline) { return postJSON<GenerationJob>("/api/jobs/svg", { outline }) }
+export function getJob(id: string) { return requestJSON<GenerationJob>(`/api/jobs/${id}`) }
+export function listJobs() { return requestJSON<{ jobs: GenerationJob[] }>("/api/jobs") }
+export function listLLMProviders() { return requestJSON<{ providers: LLMProvider[] }>("/api/admin/providers") }
+export function createLLMProvider(payload: { name: string; kind: string; baseURL?: string; apiKey: string; enabled?: boolean }) { return postJSON<LLMProvider>("/api/admin/providers", payload) }
+export function updateLLMProvider(id: string, payload: { name?: string; kind?: string; baseURL?: string; apiKey?: string; enabled?: boolean }) { return requestJSON<LLMProvider>(`/api/admin/providers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }) }
+export function deleteLLMProvider(id: string) { return requestJSON<{ ok: boolean }>(`/api/admin/providers/${id}`, { method: "DELETE" }) }
+export function listProviderModels(id: string, payload?: { kind?: string; baseURL?: string; apiKey?: string }) {
+  if (payload) return postJSON<{ models: LLMModelInfo[] }>(`/api/admin/providers/${id}/models`, payload)
+  return requestJSON<{ models: LLMModelInfo[] }>(`/api/admin/providers/${id}/models`)
+}

@@ -4,7 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getMe, getSetupStatus, register } from "@/lib/api"
+import { register } from "@/lib/api"
+import { loadSessionSnapshot } from "@/lib/auth-bootstrap"
 import { DebugErrorAlert } from "@/components/debug-error-alert"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -28,12 +29,20 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     let active = true
     async function checkAuthState() {
       try {
-        const setup = await getSetupStatus()
+        const snapshot = await loadSessionSnapshot({ includeQuota: false })
         if (!active) return
-        setNeedsSetup(setup.needsSetup)
-        if (setup.needsSetup) return
-        try { await getMe(); if (active) router.replace("/workspace") } catch {}
-      } catch (err) { if (active) setError(err) } finally { if (active) setIsChecking(false) }
+        if (snapshot.status === "setup") {
+          setNeedsSetup(true)
+          return
+        }
+        if (snapshot.status === "authenticated") {
+          router.replace("/workspace")
+        }
+      } catch (err) {
+        if (active) setError(err)
+      } finally {
+        if (active) setIsChecking(false)
+      }
     }
     void checkAuthState()
     return () => { active = false }

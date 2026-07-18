@@ -1,11 +1,21 @@
-import { SignupForm } from "@/components/signup-form"
+"use client"
 
-export default function Page() {
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { Loader2Icon } from "lucide-react"
+
+export default function SignupRedirectPage() {
+  const router = useRouter()
+  React.useEffect(() => {
+    router.replace("/register")
+  }, [router])
+
   return (
-    <div className="flex min-h-svh w-full items-center justify-center bg-background p-6 md:p-10">
-      <div className="w-full max-w-md">
-        <SignupForm />
+    <main className="flex min-h-svh items-center justify-center bg-background">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2Icon className="animate-spin" />
+        正在前往注册页...
       </div>
-    </div>
+    </main>
   )
 }

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { ArrowRightIcon, Loader2Icon, LogInIcon, UserPlusIcon } from "lucide-react"
-import { getMe } from "@/lib/api"
+import { loadSessionSnapshot } from "@/lib/auth-bootstrap"
 import { Button } from "@/components/ui/button"
 
 type LandingState = "checking" | "authenticated" | "anonymous"
@@ -15,17 +15,18 @@ export function LandingAuthActions() {
     let active = true
 
      async function checkAuth() {
-    try {
-      await getMe()
-      if (active) {
-        setState("authenticated")
-      }
-    } catch {
-      if (active) {
+      try {
+        const snapshot = await loadSessionSnapshot({ includeQuota: false })
+        if (!active) return
+        if (snapshot.status === "authenticated") {
+          setState("authenticated")
+          return
+        }
         setState("anonymous")
+      } catch {
+        if (active) setState("anonymous")
       }
     }
-  }
 
     void checkAuth()
     return () => {

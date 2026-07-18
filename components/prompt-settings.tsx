@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { getPrompts, resetPrompts, savePrompts } from "@/lib/api"
-import type { GenerationRoleSettings, ModelConfig, PromptSettings, Provider } from "@/lib/types"
+import { getPrompts, listLLMProviders, listProviderModels, resetPrompts, savePrompts } from "@/lib/api"
+import type { GenerationRoleSettings, LLMModelInfo, LLMProvider, PromptSettings } from "@/lib/types"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,20 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertCircleIcon, Loader2Icon, RotateCcwIcon, SaveIcon } from "lucide-react"
 
-const providerDefaults: Record<Provider, Pick<ModelConfig, "baseURL" | "model">> = {
-  openai: { baseURL: "https://api.openai.com/v1", model: "gpt-5.5" },
-  gemini: { baseURL: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-3.5-flash" },
-  claude: { baseURL: "https://api.anthropic.com/v1", model: "claude-opus-4-8" },
-}
 
 const emptyRoleSettings: GenerationRoleSettings = {
   systemPrompt: "",
   supportsTools: false,
+  requestJson: "",
+  providerId: "",
+  model: "",
   modelConfig: {
-    provider: "claude",
+    provider: "openai",
     apiKey: "",
-    baseURL: "https://api.anthropic.com/v1",
-    model: "claude-opus-4-8",
+    baseURL: "",
+    model: "",
   },
 }
 
@@ -41,13 +39,16 @@ export function PromptSettingsPanel() {
   const [error, setError] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
+  const [providers, setProviders] = React.useState<LLMProvider[]>([])
+  const [modelsByProvider, setModelsByProvider] = React.useState<Record<string, LLMModelInfo[]>>({})
 
   async function loadPrompts() {
     setIsLoading(true)
     setError("")
     try {
-      const nextSettings = await getPrompts()
+      const [nextSettings, providerRes] = await Promise.all([getPrompts(), listLLMProviders().catch(() => ({ providers: [] as LLMProvider[] }))])
       setSettings(normalizeSettings(nextSettings))
+      setProviders(providerRes.providers || [])
     } catch (err) {
       const message = err instanceof Error ? err.message : "加载角色模型失败"
       setError(message)
@@ -72,18 +73,6 @@ export function PromptSettingsPanel() {
     }))
   }
 
-  function updateModel(role: "architect" | "svg", patch: Partial<ModelConfig>) {
-    setSettings((current) => ({
-      ...current,
-      [role]: {
-        ...current[role],
-        modelConfig: {
-          ...current[role].modelConfig,
-          ...patch,
-        },
-      },
-    }))
-  }
 
   async function handleSave() {
     setIsSaving(true)
@@ -99,7 +88,7 @@ export function PromptSettingsPanel() {
   }
 
   async function handleReset() {
-    if (!window.confirm("确认恢复默认提示词？模型和 API Key 会保留。")) {
+    if (!window.confirm("确认恢复默认提示词？提供商与模型绑定会保留。")) {
       return
     }
     setIsSaving(true)
@@ -118,7 +107,7 @@ export function PromptSettingsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>生成角色模型</CardTitle>
-        <CardDescription>分别配置 PPT 架构师和 PPT-SVG 生成器使用的模型、API Key 和系统提示词。</CardDescription>
+        <CardDescription>为架构师和页面生成器绑定 LLM 提供商与模型（不支持旧版手动填写 API Key）。</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup>
@@ -144,8 +133,18 @@ export function PromptSettingsPanel() {
                 title="PPT 架构师"
                 value={settings.architect}
                 disabled={isLoading || isSaving}
+                providers={providers}
+                models={modelsByProvider[settings.architect.providerId || ""] || []}
+                onLoadModels={async (providerId) => {
+                  if (!providerId || modelsByProvider[providerId]) return
+                  try {
+                    const res = await listProviderModels(providerId)
+                    setModelsByProvider((current) => ({ ...current, [providerId]: res.models || [] }))
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "拉取模型失败")
+                  }
+                }}
                 onRoleChange={(patch) => updateRole("architect", patch)}
-                onModelChange={(patch) => updateModel("architect", patch)}
               />
             </TabsContent>
             <TabsContent value="svg">
@@ -153,8 +152,18 @@ export function PromptSettingsPanel() {
                 title="PPT-SVG 生成器"
                 value={settings.svg}
                 disabled={isLoading || isSaving}
+                providers={providers}
+                models={modelsByProvider[settings.svg.providerId || ""] || []}
+                onLoadModels={async (providerId) => {
+                  if (!providerId || modelsByProvider[providerId]) return
+                  try {
+                    const res = await listProviderModels(providerId)
+                    setModelsByProvider((current) => ({ ...current, [providerId]: res.models || [] }))
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "拉取模型失败")
+                  }
+                }}
                 onRoleChange={(patch) => updateRole("svg", patch)}
-                onModelChange={(patch) => updateModel("svg", patch)}
               />
             </TabsContent>
           </Tabs>
@@ -174,69 +183,65 @@ export function PromptSettingsPanel() {
   )
 }
 
-type RoleSettingsFormProps = {
+
+function RoleSettingsForm({ title, value, disabled, providers, models, onLoadModels, onRoleChange }: {
   title: string
   value: GenerationRoleSettings
   disabled: boolean
+  providers: LLMProvider[]
+  models: LLMModelInfo[]
+  onLoadModels: (providerId: string) => void
   onRoleChange: (patch: Partial<GenerationRoleSettings>) => void
-  onModelChange: (patch: Partial<ModelConfig>) => void
-}
+}) {
+  React.useEffect(() => {
+    if (value.providerId) onLoadModels(value.providerId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value.providerId])
 
-function RoleSettingsForm({ title, value, disabled, onRoleChange, onModelChange }: RoleSettingsFormProps) {
-  function handleProviderChange(provider: Provider) {
-    onModelChange({
-      provider,
-      baseURL: providerDefaults[provider].baseURL,
-      model: providerDefaults[provider].model,
-    })
-  }
+  const enabledProviders = providers.filter((p) => p.enabled)
 
   return (
     <div className="mt-4 flex flex-col gap-5">
       <div className="grid gap-5 md:grid-cols-2">
         <Field>
-          <FieldLabel>{title} Provider</FieldLabel>
-          <Select value={value.modelConfig.provider} onValueChange={(provider) => handleProviderChange(provider as Provider)} disabled={disabled}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
+          <FieldLabel>{title} LLM 提供商</FieldLabel>
+          <Select
+            value={value.providerId || undefined}
+            onValueChange={(providerId) => {
+              onRoleChange({ providerId, model: "" })
+              onLoadModels(providerId)
+            }}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-full"><SelectValue placeholder="请选择提供商" /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value="openai">OpenAI / 兼容格式</SelectItem>
-                <SelectItem value="gemini">Gemini</SelectItem>
-                <SelectItem value="claude">Claude</SelectItem>
+                {enabledProviders.length ? enabledProviders.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name} · {p.kind}</SelectItem>
+                )) : (
+                  <SelectItem value="__none__" disabled>请先在「LLM 提供商」中添加</SelectItem>
+                )}
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldDescription>必须先配置 LLM 提供商，再在此绑定提供商与模型。</FieldDescription>
         </Field>
         <Field>
-          <FieldLabel htmlFor={`${title}-model`}>模型名称</FieldLabel>
-          <Input
-            id={`${title}-model`}
-            value={value.modelConfig.model}
-            onChange={(event) => onModelChange({ model: event.target.value })}
-            disabled={disabled}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${title}-api-key`}>API Key</FieldLabel>
-          <Input
-            id={`${title}-api-key`}
-            type="password"
-            value={value.modelConfig.apiKey}
-            onChange={(event) => onModelChange({ apiKey: event.target.value })}
-            disabled={disabled}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${title}-base-url`}>Base URL</FieldLabel>
-          <Input
-            id={`${title}-base-url`}
-            value={value.modelConfig.baseURL}
-            onChange={(event) => onModelChange({ baseURL: event.target.value })}
-            disabled={disabled}
-          />
-          <FieldDescription>可留空使用后端 provider 默认地址。</FieldDescription>
+          <FieldLabel>{title} 模型</FieldLabel>
+          <Select
+            value={value.model || undefined}
+            onValueChange={(model) => onRoleChange({ model })}
+            disabled={disabled || !value.providerId}
+          >
+            <SelectTrigger className="w-full"><SelectValue placeholder={value.providerId ? "请选择模型" : "先选择提供商"} /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {(models.length ? models : (value.model ? [{ id: value.model, name: value.model }] : [])).map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name || m.id}</SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </Field>
       </div>
       <Field>
@@ -266,6 +271,20 @@ function RoleSettingsForm({ title, value, disabled, onRoleChange, onModelChange 
         />
         <FieldDescription>必须约束模型输出严格 JSON，否则生成可能失败。</FieldDescription>
       </Field>
+      <Field>
+        <FieldLabel htmlFor={`${title}-request-json`}>请求 JSON 扩展</FieldLabel>
+        <Textarea
+          id={`${title}-request-json`}
+          value={value.requestJson || ""}
+          onChange={(event) => onRoleChange({ requestJson: event.target.value })}
+          className="min-h-40 font-mono text-xs"
+          disabled={disabled}
+          placeholder={`{\n  "temperature": 0.2,\n  "max_tokens": 8192\n}`}
+        />
+        <FieldDescription>
+          可选。会合并进实际发给 LLM 的请求体，用于补充 temperature、max_tokens 等 provider 扩展字段。请填写 JSON 对象；留空表示不额外覆盖。
+        </FieldDescription>
+      </Field>
     </div>
   )
 }
@@ -282,9 +301,14 @@ function normalizeRole(role: GenerationRoleSettings): GenerationRoleSettings {
   return {
     systemPrompt: role?.systemPrompt ?? "",
     supportsTools: role?.supportsTools ?? false,
+    requestJson: role?.requestJson ?? "",
+    providerId: role?.providerId ?? "",
+    model: role?.model ?? "",
     modelConfig: {
-      ...emptyRoleSettings.modelConfig,
-      ...role?.modelConfig,
+      provider: "openai",
+      apiKey: "",
+      baseURL: "",
+      model: role?.model ?? "",
     },
   }
 }

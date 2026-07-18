@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react"
 import { CircleHelpIcon, FileImageIcon, FileTextIcon, LayoutDashboardIcon, SettingsIcon, ServerIcon, UsersIcon, UserCogIcon, WandSparklesIcon } from "lucide-react"
 import type { UserRole } from "@/lib/types"
 
-export type AppPageId = "workspace.overview" | "workspace.topic" | "workspace.outline" | "workspace.ppt" | "admin.users" | "admin.groups" | "admin.settings" | "admin.roles" | "admin.storage" | "system.help"
+export type AppPageId = "workspace.overview" | "workspace.topic" | "workspace.outline" | "workspace.ppt" | "admin.users" | "admin.groups" | "admin.settings" | "admin.providers" | "admin.roles" | "admin.storage" | "system.help"
 export type RoleVisibility = "all" | "admin"
 export type AppMenuItem = { id: AppPageId; title: string; description: string; role: RoleVisibility; icon: LucideIcon }
 export type AppMenuGroup = { id: string; title: string; description: string; role: RoleVisibility; icon: LucideIcon; items: AppMenuItem[] }
@@ -16,6 +16,7 @@ const PAGE_PATHS: Record<AppPageId, string> = {
   "admin.users": "/admin/users",
   "admin.groups": "/admin/groups",
   "admin.settings": "/admin/settings",
+  "admin.providers": "/admin/providers",
   "admin.roles": "/admin/roles",
   "admin.storage": "/admin/storage",
   "system.help": "/help",
@@ -32,7 +33,8 @@ export const APP_MENU: AppMenuGroup[] = [
     { id: "admin.users", title: "用户管理", description: "创建用户、分配用户组、设置单用户额度。", role: "admin", icon: UsersIcon },
     { id: "admin.groups", title: "用户组", description: "创建用户组并配置每日生成额度。", role: "admin", icon: UserCogIcon },
     { id: "admin.settings", title: "系统设置", description: "控制公开注册和默认用户组。", role: "admin", icon: SettingsIcon },
-    { id: "admin.roles", title: "角色模型", description: "配置 PPT 架构师和 PPT-SVG 生成器的模型、API Key、工具调用和系统提示词。", role: "admin", icon: SettingsIcon },
+    { id: "admin.providers", title: "LLM 提供商", description: "管理 LLM 提供商站点地址与 API Key，并拉取可用模型列表。", role: "admin", icon: ServerIcon },
+    { id: "admin.roles", title: "角色模型", description: "为 PPT 架构师和页面生成器绑定提供商、模型与系统提示词。", role: "admin", icon: SettingsIcon },
     { id: "admin.storage", title: "存储管理", description: "查看、测试和切换系统主数据存储方式。", role: "admin", icon: ServerIcon },
   ] },
   { id: "system", title: "系统", description: "系统说明和使用指引", role: "all", icon: CircleHelpIcon, items: [
@@ -55,6 +57,7 @@ export function pathToPageId(pathname: string): AppPageId {
   if (normalized.startsWith("/admin/users")) return "admin.users"
   if (normalized.startsWith("/admin/groups")) return "admin.groups"
   if (normalized.startsWith("/admin/settings")) return "admin.settings"
+  if (normalized.startsWith("/admin/providers")) return "admin.providers"
   if (normalized.startsWith("/admin/roles")) return "admin.roles"
   if (normalized.startsWith("/admin/storage")) return "admin.storage"
   if (normalized.startsWith("/help")) return "system.help"

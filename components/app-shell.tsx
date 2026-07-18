@@ -4,7 +4,8 @@ import * as React from "react"
 import dynamic from "next/dynamic"
 import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getMe, getMyQuota, getSetupStatus, logout } from "@/lib/api"
+import { logout } from "@/lib/api"
+import { loadSessionSnapshot } from "@/lib/auth-bootstrap"
 import { findPage, getDefaultPage, isAdminPage, isPageVisible, pageIdToPath, pathToPageId, type AppPageId } from "@/lib/navigation"
 import type { EffectiveQuota, User } from "@/lib/types"
 import { DashboardHeader } from "@/components/dashboard-header"
@@ -49,32 +50,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let active = true
     async function bootstrap() {
       try {
-        const setup = await getSetupStatus()
-        if (!active) {
-          return
-        }
-        if (setup.needsSetup) {
+        const snapshot = await loadSessionSnapshot({ includeQuota: true })
+        if (!active) return
+        if (snapshot.status === "setup") {
           setState("setup")
           return
         }
-        try {
-          const me = await getMe()
-          if (!active) {
-            return
-          }
-          setUser(me.user)
-          getMyQuota().then((nextQuota) => { if (active) setQuota(nextQuota) }).catch(() => {})
+        if (snapshot.status === "authenticated") {
+          setUser(snapshot.user)
+          setQuota(snapshot.quota)
           setState("ready")
-        } catch {
-          if (active) {
-            router.replace("/login")
-            setState("login")
-          }
-        }
-      } catch (err) {
-        if (!active) {
           return
         }
+        router.replace("/login")
+        setState("login")
+      } catch (err) {
+        if (!active) return
         router.replace("/login")
         setError(err instanceof Error ? err.message : "加载失败")
         setState("login")
@@ -105,7 +96,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (state === "setup") {
-    return <SetupWizard onReady={(nextUser) => { setUser(nextUser); setState("ready"); router.replace("/workspace") }} />
+    return (
+      <SetupWizard
+        onReady={(nextUser) => {
+          setUser(nextUser)
+          setState("ready")
+          router.replace("/workspace")
+        }}
+      />
+    )
   }
 
   if (state === "login") {

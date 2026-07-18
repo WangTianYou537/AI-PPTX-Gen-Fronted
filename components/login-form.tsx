@@ -4,7 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { getMe, getSetupStatus, login } from "@/lib/api"
+import { login } from "@/lib/api"
+import { loadSessionSnapshot } from "@/lib/auth-bootstrap"
 import { cn } from "@/lib/utils"
 import { DebugErrorAlert } from "@/components/debug-error-alert"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -42,21 +43,14 @@ export function LoginForm({
 
     async function checkAuthState() {
       try {
-        const setup = await getSetupStatus()
-        if (!active) {
+        const snapshot = await loadSessionSnapshot({ includeQuota: false })
+        if (!active) return
+        if (snapshot.status === "setup") {
+          setNeedsSetup(true)
           return
         }
-        setNeedsSetup(setup.needsSetup)
-        if (setup.needsSetup) {
-          return
-        }
-        try {
-          await getMe()
-          if (active) {
-            router.replace("/workspace")
-          }
-        } catch {
-          // Stay on the login page.
+        if (snapshot.status === "authenticated") {
+          router.replace("/workspace")
         }
       } catch (err) {
         if (active) {
