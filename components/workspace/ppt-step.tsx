@@ -11,14 +11,28 @@ export function WorkspacePPTStep({
   outline,
   svgs,
   isExportingPPTX,
+  regeneratingId,
+  revisingId,
+  batchRetrying,
+  batchRetryProgress,
   onPageChange,
   onExportPPTX,
+  onRegenerateSlide,
+  onRegenerateFailedSlides,
+  onReviseSlide,
 }: {
   outline: PresentationOutline | null
   svgs: SlideSVG[]
   isExportingPPTX: boolean
+  regeneratingId?: string | null
+  revisingId?: string | null
+  batchRetrying?: boolean
+  batchRetryProgress?: { done: number; total: number; current?: string } | null
   onPageChange: (page: AppPageId) => void
   onExportPPTX: () => void
+  onRegenerateSlide?: (slideId: string) => void
+  onRegenerateFailedSlides?: () => void
+  onReviseSlide?: (slideId: string, instruction: string, currentSvg: string) => void
 }) {
   if (!svgs || svgs.length === 0) {
     return (
@@ -49,14 +63,30 @@ export function WorkspacePPTStep({
     )
   }
 
+  const failed = svgs.filter((s) => s.error || !s.svg).length
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="space-y-1.5 pb-1">
         <h2 className="text-lg font-bold text-foreground">幻灯片预览与导出</h2>
-        <p className="text-sm leading-relaxed text-zinc-400">预览渲染出来的多页 PPT 幻灯片，确认效果后一键打包导出。</p>
+        <p className="text-sm leading-relaxed text-zinc-400">
+          预览渲染出来的多页 PPT 幻灯片。
+          {failed > 0 ? " 失败页面可单独或批量重新生成，不会中断其他页面。" : " 确认效果后一键打包导出。"}
+        </p>
       </div>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 shadow-xl shadow-black/45 backdrop-blur-sm">
-        <SVGPreviewGrid slides={svgs} isExporting={isExportingPPTX} onExportPPTX={onExportPPTX} />
+        <SVGPreviewGrid
+          slides={svgs}
+          isExporting={isExportingPPTX}
+          regeneratingId={regeneratingId}
+          revisingId={revisingId}
+          batchRetrying={batchRetrying}
+          batchRetryProgress={batchRetryProgress}
+          onExportPPTX={onExportPPTX}
+          onRegenerateSlide={onRegenerateSlide}
+          onRegenerateFailedSlides={onRegenerateFailedSlides}
+          onReviseSlide={onReviseSlide}
+        />
       </div>
     </div>
   )

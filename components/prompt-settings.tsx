@@ -33,6 +33,7 @@ export function PromptSettingsPanel() {
   const [settings, setSettings] = React.useState<PromptSettings>({
     architect: emptyRoleSettings,
     svg: emptyRoleSettings,
+    theme: emptyRoleSettings,
     updatedAt: "",
     updatedBy: "",
   })
@@ -63,7 +64,7 @@ export function PromptSettingsPanel() {
     void loadPrompts()
   }, [])
 
-  function updateRole(role: "architect" | "svg", patch: Partial<GenerationRoleSettings>) {
+  function updateRole(role: "architect" | "svg" | "theme", patch: Partial<GenerationRoleSettings>) {
     setSettings((current) => ({
       ...current,
       [role]: {
@@ -107,7 +108,7 @@ export function PromptSettingsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>生成角色模型</CardTitle>
-        <CardDescription>为架构师和页面生成器绑定 LLM 提供商与模型（不支持旧版手动填写 API Key）。</CardDescription>
+        <CardDescription>为架构师、主题色策划师和页面生成器绑定 LLM 提供商与模型；主题色策划师负责输出统一色板。</CardDescription>
       </CardHeader>
       <CardContent>
         <FieldGroup>
@@ -126,6 +127,7 @@ export function PromptSettingsPanel() {
           <Tabs defaultValue="architect">
             <TabsList>
               <TabsTrigger value="architect">PPT 架构师</TabsTrigger>
+              <TabsTrigger value="theme">主题色策划师</TabsTrigger>
               <TabsTrigger value="svg">PPT-SVG 生成器</TabsTrigger>
             </TabsList>
             <TabsContent value="architect">
@@ -146,6 +148,29 @@ export function PromptSettingsPanel() {
                 }}
                 onRoleChange={(patch) => updateRole("architect", patch)}
               />
+            </TabsContent>
+            <TabsContent value="theme">
+              <RoleSettingsForm
+                title="主题色策划师"
+                value={settings.theme || emptyRoleSettings}
+                disabled={isLoading || isSaving}
+                providers={providers}
+                models={modelsByProvider[settings.theme?.providerId || ""] || []}
+                onLoadModels={async (providerId) => {
+                  if (!providerId || modelsByProvider[providerId]) return
+                  try {
+                    const res = await listProviderModels(providerId)
+                    setModelsByProvider((current) => ({ ...current, [providerId]: res.models || [] }))
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "拉取模型失败")
+                  }
+                }}
+                onRoleChange={(patch) => updateRole("theme", patch)}
+              />
+              <p className="mt-3 text-xs text-muted-foreground">
+                主题色策划师会在生成每套 PPT 页面前，根据视觉风格先产出统一色板（background/text/accent），再交给 SVG 生成器复用，保证风格统一。
+                若未配置提供商，将自动回退到规则色板。
+              </p>
             </TabsContent>
             <TabsContent value="svg">
               <RoleSettingsForm
@@ -184,7 +209,15 @@ export function PromptSettingsPanel() {
 }
 
 
-function RoleSettingsForm({ title, value, disabled, providers, models, onLoadModels, onRoleChange }: {
+function RoleSettingsForm({
+  title,
+  value,
+  disabled,
+  providers,
+  models,
+  onLoadModels,
+  onRoleChange,
+}: {
   title: string
   value: GenerationRoleSettings
   disabled: boolean
@@ -199,6 +232,12 @@ function RoleSettingsForm({ title, value, disabled, providers, models, onLoadMod
   }, [value.providerId])
 
   const enabledProviders = providers.filter((p) => p.enabled)
+  const selectedProvider = providers.find((p) => p.id === value.providerId)
+  const providerKind = selectedProvider?.kind || "openai"
+  const preview = React.useMemo(
+    () => buildRequestPreview(providerKind, value.model || "", value.systemPrompt, value.requestJson || "", value.supportsTools),
+    [providerKind, value.model, value.systemPrompt, value.requestJson, value.supportsTools],
+  )
 
   return (
     <div className="mt-4 flex flex-col gap-5">
@@ -272,21 +311,158 @@ function RoleSettingsForm({ title, value, disabled, providers, models, onLoadMod
         <FieldDescription>必须约束模型输出严格 JSON，否则生成可能失败。</FieldDescription>
       </Field>
       <Field>
-        <FieldLabel htmlFor={`${title}-request-json`}>请求 JSON 扩展</FieldLabel>
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel htmlFor={`${title}-request-json`}>请求 JSON 增量</FieldLabel>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => onRoleChange({ requestJson: defaultExtraJSON(providerKind) })}
+          >
+            填入示例增量
+          </Button>
+        </div>
         <Textarea
           id={`${title}-request-json`}
           value={value.requestJson || ""}
           onChange={(event) => onRoleChange({ requestJson: event.target.value })}
           className="min-h-40 font-mono text-xs"
           disabled={disabled}
-          placeholder={`{\n  "temperature": 0.2,\n  "max_tokens": 8192\n}`}
+          placeholder={defaultExtraJSON(providerKind)}
         />
         <FieldDescription>
-          可选。会合并进实际发给 LLM 的请求体，用于补充 temperature、max_tokens 等 provider 扩展字段。请填写 JSON 对象；留空表示不额外覆盖。
+          只写要追加/覆盖的字段，会合并进该 Provider 的默认请求体。例如 stream、temperature、max_tokens、top_p。OpenAI 可用 <code>{`"stream": true/false`}</code> 切换流式。
+        </FieldDescription>
+      </Field>
+      <Field>
+        <FieldLabel>请求 Payload 预览</FieldLabel>
+        <pre className="max-h-80 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs leading-relaxed whitespace-pre-wrap break-all">
+          {preview.text}
+        </pre>
+        <FieldDescription>
+          预览 = 当前 Provider 默认结构 + 上方增量 JSON。实际发送时 system/user 内容会替换为真实提示词与业务请求。
+          {preview.error ? ` 当前增量 JSON 无效：${preview.error}` : ""}
         </FieldDescription>
       </Field>
     </div>
   )
+}
+
+function defaultExtraJSON(kind: string) {
+  if (kind === "claude") {
+    return `{\n  "temperature": 0.2,\n  "max_tokens": 8192\n}`
+  }
+  if (kind === "gemini") {
+    return `{\n  "generationConfig": {\n    "temperature": 0.2\n  }\n}`
+  }
+  if (kind === "openai-responses") {
+    return `{\n  "temperature": 0.2,\n  "max_output_tokens": 8192\n}`
+  }
+  return `{\n  "temperature": 0.2,\n  "max_tokens": 8192,\n  "top_p": 1\n}`
+}
+
+function buildRequestPreview(
+  kind: string,
+  model: string,
+  systemPrompt: string,
+  extraRaw: string,
+  supportsTools: boolean,
+): { text: string; error?: string } {
+  const sampleUser = "（示例）请根据业务输入生成结果…"
+  const base = basePayloadByKind(kind, model || "your-model", systemPrompt || "（系统提示词）", sampleUser, supportsTools)
+  const trimmed = extraRaw.trim()
+  if (!trimmed) {
+    return { text: JSON.stringify(base, null, 2) }
+  }
+  try {
+    const extra = JSON.parse(trimmed) as unknown
+    if (!extra || typeof extra !== "object" || Array.isArray(extra)) {
+      return { text: JSON.stringify(base, null, 2), error: "增量必须是 JSON 对象" }
+    }
+    return { text: JSON.stringify(deepMerge(base, extra as Record<string, unknown>), null, 2) }
+  } catch (err) {
+    return {
+      text: JSON.stringify(base, null, 2),
+      error: err instanceof Error ? err.message : "JSON 解析失败",
+    }
+  }
+}
+
+function basePayloadByKind(
+  kind: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  supportsTools: boolean,
+) {
+  if (kind === "openai-responses") {
+    const payload: Record<string, unknown> = {
+      model,
+      instructions: systemPrompt,
+      input: [{ role: "user", content: userPrompt }],
+      stream: false,
+    }
+    if (supportsTools) {
+      payload.tools = ["（运行时注入 function tools）"]
+      payload.tool_choice = "（运行时注入）"
+    }
+    return payload
+  }
+  if (kind === "claude") {
+    const payload: Record<string, unknown> = {
+      model,
+      max_tokens: 16000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }
+    if (supportsTools) {
+      payload.tools = ["（运行时注入 tools）"]
+      payload.tool_choice = "（运行时注入）"
+    }
+    return payload
+  }
+  if (kind === "gemini") {
+    const payload: Record<string, unknown> = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    }
+    return payload
+  }
+  // openai chat completions default
+  const payload: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    stream: true,
+  }
+  if (supportsTools) {
+    payload.tools = ["（运行时注入 function tools）"]
+    payload.tool_choice = "（运行时注入）"
+  }
+  return payload
+}
+
+function deepMerge(base: Record<string, unknown>, extra: Record<string, unknown>) {
+  const out: Record<string, unknown> = { ...base }
+  for (const [key, value] of Object.entries(extra)) {
+    const current = out[key]
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      current &&
+      typeof current === "object" &&
+      !Array.isArray(current)
+    ) {
+      out[key] = deepMerge(current as Record<string, unknown>, value as Record<string, unknown>)
+    } else {
+      out[key] = value
+    }
+  }
+  return out
 }
 
 function normalizeSettings(settings: PromptSettings): PromptSettings {
@@ -294,6 +470,7 @@ function normalizeSettings(settings: PromptSettings): PromptSettings {
     ...settings,
     architect: normalizeRole(settings.architect),
     svg: normalizeRole(settings.svg),
+    theme: normalizeRole(settings.theme || emptyRoleSettings),
   }
 }
 

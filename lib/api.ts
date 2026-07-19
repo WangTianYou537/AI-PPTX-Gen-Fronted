@@ -2,7 +2,9 @@ import type {
   AuthResponse,
   BootstrapResponse,
   EffectiveQuota,
+  AgentWorkflow,
   GenerationJob,
+  UploadItem,
   LLMModelInfo,
   LLMProvider,
   PresentationOutline,
@@ -96,14 +98,66 @@ export async function exportPPTX(title: string, slides: SlideSVG[]) {
 export function generateOutline(input: TopicInput) { return postJSON<PresentationOutline>("/api/architect", input) }
 export function generateSVG(outline: PresentationOutline) { return postJSON<SVGResponse>("/api/generate-svg", { outline }) }
 export function createOutlineJob(input: TopicInput) { return postJSON<GenerationJob>("/api/jobs/outline", input) }
-export function createSVGJob(outline: PresentationOutline) { return postJSON<GenerationJob>("/api/jobs/svg", { outline }) }
+export function createSVGJob(
+  outline: PresentationOutline,
+  options?: {
+    slideIds?: string[]
+    parentJobId?: string
+    existingSlides?: SlideSVG[]
+    instruction?: string
+    currentSvg?: string
+  },
+) {
+  return postJSON<GenerationJob>("/api/jobs/svg", {
+    outline,
+    slideIds: options?.slideIds || [],
+    parentJobId: options?.parentJobId || "",
+    existingSlides: options?.existingSlides || [],
+    instruction: options?.instruction || "",
+    currentSvg: options?.currentSvg || "",
+  })
+}
+// Keep sync endpoint for compatibility, but UI should prefer createSVGJob partial retries.
+export function regenerateSVGSlide(
+  outline: PresentationOutline,
+  slideId: string,
+  options?: { instruction?: string; currentSvg?: string; jobId?: string },
+) {
+  return postJSON<{ slide: SlideSVG; quota?: EffectiveQuota; failed?: boolean; jobId?: string; job?: GenerationJob }>(
+    "/api/generate-svg-slide",
+    {
+      outline,
+      slideId,
+      instruction: options?.instruction || "",
+      currentSvg: options?.currentSvg || "",
+      jobId: options?.jobId || "",
+    },
+  )
+}
 export function getJob(id: string) { return requestJSON<GenerationJob>(`/api/jobs/${id}`) }
+export function saveOutlineJobResult(jobId: string, outline: PresentationOutline) {
+  return requestJSON<GenerationJob>(`/api/jobs/${jobId}/outline`, {
+    method: "PUT",
+    body: JSON.stringify({ outline }),
+  })
+}
 export function listJobs() { return requestJSON<{ jobs: GenerationJob[] }>("/api/jobs") }
+export async function uploadFile(file: File) {
+  const body = new FormData()
+  body.append("file", file)
+  const response = await fetch(`${API_BASE_URL}/api/uploads`, { method: "POST", credentials: "same-origin", body })
+  if (!response.ok) throw await parseAPIError(response, "/api/uploads", "POST")
+  return response.json() as Promise<UploadItem>
+}
+export function listUploads() { return requestJSON<{ uploads: UploadItem[] }>("/api/uploads") }
+export function getAgentWorkflow() { return requestJSON<{ workflow: AgentWorkflow; defaults: AgentWorkflow }>("/api/admin/agent/workflow") }
+export function saveAgentWorkflow(workflow: AgentWorkflow) { return requestJSON<{ workflow: AgentWorkflow }>("/api/admin/agent/workflow", { method: "PUT", body: JSON.stringify({ workflow }) }) }
+export function resetAgentWorkflow() { return postJSON<{ workflow: AgentWorkflow }>("/api/admin/agent/workflow/reset", {}) }
 export function listLLMProviders() { return requestJSON<{ providers: LLMProvider[] }>("/api/admin/providers") }
-export function createLLMProvider(payload: { name: string; kind: string; baseURL?: string; apiKey: string; enabled?: boolean }) { return postJSON<LLMProvider>("/api/admin/providers", payload) }
-export function updateLLMProvider(id: string, payload: { name?: string; kind?: string; baseURL?: string; apiKey?: string; enabled?: boolean }) { return requestJSON<LLMProvider>(`/api/admin/providers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }) }
+export function createLLMProvider(payload: { name: string; kind: string; baseURL?: string; apiKey: string; proxy?: string; enabled?: boolean }) { return postJSON<LLMProvider>("/api/admin/providers", payload) }
+export function updateLLMProvider(id: string, payload: { name?: string; kind?: string; baseURL?: string; apiKey?: string; proxy?: string; enabled?: boolean }) { return requestJSON<LLMProvider>(`/api/admin/providers/${id}`, { method: "PATCH", body: JSON.stringify(payload) }) }
 export function deleteLLMProvider(id: string) { return requestJSON<{ ok: boolean }>(`/api/admin/providers/${id}`, { method: "DELETE" }) }
-export function listProviderModels(id: string, payload?: { kind?: string; baseURL?: string; apiKey?: string }) {
+export function listProviderModels(id: string, payload?: { kind?: string; baseURL?: string; apiKey?: string; proxy?: string }) {
   if (payload) return postJSON<{ models: LLMModelInfo[] }>(`/api/admin/providers/${id}/models`, payload)
   return requestJSON<{ models: LLMModelInfo[] }>(`/api/admin/providers/${id}/models`)
 }

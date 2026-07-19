@@ -1,8 +1,8 @@
 import type { LucideIcon } from "lucide-react"
-import { CircleHelpIcon, FileImageIcon, FileTextIcon, LayoutDashboardIcon, SettingsIcon, ServerIcon, UsersIcon, UserCogIcon, WandSparklesIcon } from "lucide-react"
+import { CircleHelpIcon, FileImageIcon, FileTextIcon, LayoutDashboardIcon, ListTodoIcon, SettingsIcon, ServerIcon, UsersIcon, UserCogIcon, WandSparklesIcon, WorkflowIcon } from "lucide-react"
 import type { UserRole } from "@/lib/types"
 
-export type AppPageId = "workspace.overview" | "workspace.topic" | "workspace.outline" | "workspace.ppt" | "admin.users" | "admin.groups" | "admin.settings" | "admin.providers" | "admin.roles" | "admin.storage" | "system.help"
+export type AppPageId = "workspace.overview" | "workspace.topic" | "workspace.outline" | "workspace.ppt" | "workspace.jobs" | "admin.users" | "admin.groups" | "admin.settings" | "admin.providers" | "admin.roles" | "admin.agent" | "admin.storage" | "system.help"
 export type RoleVisibility = "all" | "admin"
 export type AppMenuItem = { id: AppPageId; title: string; description: string; role: RoleVisibility; icon: LucideIcon }
 export type AppMenuGroup = { id: string; title: string; description: string; role: RoleVisibility; icon: LucideIcon; items: AppMenuItem[] }
@@ -13,11 +13,13 @@ const PAGE_PATHS: Record<AppPageId, string> = {
   "workspace.topic": "/workspace/topic",
   "workspace.outline": "/workspace/outline",
   "workspace.ppt": "/workspace/ppt",
+  "workspace.jobs": "/workspace/jobs",
   "admin.users": "/admin/users",
   "admin.groups": "/admin/groups",
   "admin.settings": "/admin/settings",
   "admin.providers": "/admin/providers",
   "admin.roles": "/admin/roles",
+  "admin.agent": "/admin/agent",
   "admin.storage": "/admin/storage",
   "system.help": "/help",
 }
@@ -28,6 +30,7 @@ export const APP_MENU: AppMenuGroup[] = [
     { id: "workspace.topic", title: "主题输入", description: "输入主题、受众、页数和视觉风格，启动 PPT 架构生成。", role: "all", icon: FileTextIcon },
     { id: "workspace.outline", title: "架构审核", description: "审核和修改 PPT 架构 JSON，再进入页面生成。", role: "all", icon: FileTextIcon },
     { id: "workspace.ppt", title: "PPT 预览与导出", description: "预览每页 PPT，复制源码或导出 PPTX 文件。", role: "all", icon: FileImageIcon },
+    { id: "workspace.jobs", title: "任务列表", description: "查看后台生成任务状态、错误详情，并继续等待或恢复结果。", role: "all", icon: ListTodoIcon },
   ] },
   { id: "admin", title: "后台管理", description: "管理用户账号、用户组和系统配置", role: "admin", icon: SettingsIcon, items: [
     { id: "admin.users", title: "用户管理", description: "创建用户、分配用户组、设置单用户额度。", role: "admin", icon: UsersIcon },
@@ -35,6 +38,7 @@ export const APP_MENU: AppMenuGroup[] = [
     { id: "admin.settings", title: "系统设置", description: "控制公开注册和默认用户组。", role: "admin", icon: SettingsIcon },
     { id: "admin.providers", title: "LLM 提供商", description: "管理 LLM 提供商站点地址与 API Key，并拉取可用模型列表。", role: "admin", icon: ServerIcon },
     { id: "admin.roles", title: "角色模型", description: "为 PPT 架构师和页面生成器绑定提供商、模型与系统提示词。", role: "admin", icon: SettingsIcon },
+    { id: "admin.agent", title: "架构师 Agent", description: "配置架构师 workflow：视觉理解、检索、汇总与大纲生成步骤。", role: "admin", icon: WorkflowIcon },
     { id: "admin.storage", title: "存储管理", description: "查看、测试和切换系统主数据存储方式。", role: "admin", icon: ServerIcon },
   ] },
   { id: "system", title: "系统", description: "系统说明和使用指引", role: "all", icon: CircleHelpIcon, items: [
@@ -53,12 +57,14 @@ export function pathToPageId(pathname: string): AppPageId {
   const normalized = pathname.replace(/\/$/, "") || "/"
   const entry = Object.entries(PAGE_PATHS).find(([, path]) => path === normalized)
   if (entry) return entry[0] as AppPageId
+  if (normalized.startsWith("/workspace/jobs")) return "workspace.jobs"
   if (normalized.startsWith("/workspace")) return "workspace.overview"
   if (normalized.startsWith("/admin/users")) return "admin.users"
   if (normalized.startsWith("/admin/groups")) return "admin.groups"
   if (normalized.startsWith("/admin/settings")) return "admin.settings"
   if (normalized.startsWith("/admin/providers")) return "admin.providers"
   if (normalized.startsWith("/admin/roles")) return "admin.roles"
+  if (normalized.startsWith("/admin/agent")) return "admin.agent"
   if (normalized.startsWith("/admin/storage")) return "admin.storage"
   if (normalized.startsWith("/help")) return "system.help"
   return getDefaultPage()
